@@ -109,8 +109,8 @@ INFO     | __main__:main:626 - Bot is running...
 
 ### Event Management
 
-- `/event_add TEXT` - Create new event with description
-  - Example: `/event_add Football tomorrow at 18:00, max 14 players`
+- `/event TEXT` - Create new event with description
+  - Example: `/event Football tomorrow at 18:00, max 14 players`
   - Supports natural language date parsing
   - Can specify player limit in description
 
@@ -138,9 +138,9 @@ INFO     | __main__:main:626 - Bot is running...
 - Only registered participants can confirm payment
 - `/payments` - Show payment log (published to Telegraph)
 
-**Payment URL support**: Include a URL in `/event_add` text and it will be extracted as a payment link button:
+**Payment URL support**: Include a URL in `/event` text and it will be extracted as a payment link button:
 ```
-/event_add Football Saturday 18:00 https://send.monobank.ua/jar/xxx
+/event Football Saturday 18:00 https://send.monobank.ua/jar/xxx
 ```
 This creates an event with description "Football Saturday 18:00" and shows a 💳 Payment link button.
 

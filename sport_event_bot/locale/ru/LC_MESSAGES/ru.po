@@ -49,8 +49,8 @@ msgid "en_US"
 msgstr "ru_RU"
 
 #: sport_event_bot2.py:161
-msgid "Error: Please provide an event description. Usage: /event_add TEXT"
-msgstr "Ошибка: добавьте описания события. Например: /event_add Футбол завтра в 06:30"
+msgid "Error: Please provide an event description. Usage: /event TEXT"
+msgstr "Ошибка: добавьте описания события. Например: /event Футбол завтра в 06:30"
 
 #: sport_event_bot2.py:165
 msgid "Error: An active event already exists. Close it with /event_remove first."
@@ -152,7 +152,7 @@ msgid ""
 "\n"
 "Available BOT commands:\n"
 "\n"
-"/event_add TEXT\n"
+"/event TEXT\n"
 "Register new event\n"
 "\n"
 "/event_remove\n"
@@ -201,7 +201,7 @@ msgstr ""
 "\n"
 "Доступные команды БОТа:\n"
 "\n"
-"/event_add ОПИСАНИЕ ДАТЫ ВРЕМЯ\n"
+"/event ОПИСАНИЕ ДАТЫ ВРЕМЯ\n"
 "Создать новое анонс/событие\n"
 "\n"
 "/event_remove\n"
@@ -295,3 +295,27 @@ msgstr "Выберите язык:"
 #: bot.py
 msgid "Usage: /blik PHONE"
 msgstr "Используйте: /blik НОМЕР_ТЕЛЕФОНА"
+
+msgid "Close collection"
+msgstr "Закрыть сбор"
+
+msgid "I am going"
+msgstr "Я иду"
+
+msgid "I am not going"
+msgstr "Я не иду"
+
+msgid "Thinking"
+msgstr "Думаю"
+
+msgid "Plus +"
+msgstr "Плюс +"
+
+msgid "Minus -"
+msgstr "Минус -"
+
+msgid "- All"
+msgstr "- Всех"
+
+msgid "Only admins or event creator can close the collection"
+msgstr "Только администраторы или создатель события могут закрыть сбор"

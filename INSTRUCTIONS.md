@@ -103,7 +103,7 @@ This is slightly more advanced but provides a 24/7 "always-on" bot.
 ---
 
 ## 3. Bot Features
-- **/event_add [description]**: Create a new football/sport event.
+- **/event [description]**: Create a new football/sport event.
 - **/event_remove**: Close the current event.
 - **/info**: Show current event status and player list.
 - **Inline Buttons**: Players can sign up, cancel, or confirm payment directly via buttons.

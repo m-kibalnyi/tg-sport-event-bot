@@ -238,6 +238,15 @@ $unpaid_count = $total_participants - $paid_count;
             <div><strong>Дата:</strong> <?= htmlspecialchars($event['datetime']) ?></div>
         <?php endif; ?>
         <div><strong>Статус:</strong> <?= $event['status'] === 'Open' ? 'Открыто' : 'Закрыто' ?></div>
+        <div style="margin-top: 10px;">
+            <a href="event_logs.php?event=<?= $event['event_id'] ?>" style="color: #007bff; text-decoration: none; font-size: 0.9em; font-weight: bold;">
+                📜 Посмотреть журнал действий
+            </a>
+            <span style="margin: 0 10px; color: #ccc;">|</span>
+            <a href="statistics.php?chat=<?= $event['chat_id'] ?>" style="color: #28a745; text-decoration: none; font-size: 0.9em; font-weight: bold;">
+                📊 Статистика
+            </a>
+        </div>
     </div>
 
     <?php if ($event['blik_phone']): ?>
