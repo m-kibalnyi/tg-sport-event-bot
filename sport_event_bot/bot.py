@@ -17,6 +17,7 @@ import re
 import signal
 import gettext
 import json
+import socket
 import parsedatetime
 import urllib.request
 import urllib.parse
@@ -126,7 +127,21 @@ def _coerce_to_datetime(val: object) -> Optional[datetime.datetime]:
     return None
 
 
-# Removed MAX sync functions
+# Health check handler for Render
+async def health_check_handler(reader, writer):
+    """Simple HTTP 200 OK responder for Render health checks."""
+    try:
+        # We don't strictly need to read the request, just respond
+        writer.write(b"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nOK")
+        await writer.drain()
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+    finally:
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except:
+            pass
 
 
 def make_translatable_user_id_context(func):
@@ -717,64 +732,7 @@ async def show_payments(update, context):
 
 @logger.catch
 @make_translatable_user_id_context
-async def link_chat(update, context):
-    """Link this chat with another platform chat (/link command)."""
-    translate = context.user_data['translate']
-    this_chat_id = update.message.chat_id
-    new_chat_id_memoization(this_chat_id, update.message.from_user.language_code)
-
-    # Check if already linked
-    linked = db.get_linked_chat(this_chat_id)
-    if linked:
-        linked_chat_id, linked_platform = linked
-        await update.message.reply_text(
-            f'{translate("This chat is already linked to")} {linked_platform} (chat {linked_chat_id}).\n'
-            f'{translate("Use /unlink to remove the link first.")}',
-            parse_mode=ParseMode.HTML
-        )
-        return
-
-    # Check for secret argument
-    args = context.args
-    if args:
-        secret = args[0].strip().upper()
-        result = db.complete_chat_link(this_chat_id, secret)
-        if result:
-            linked_chat_id, linked_platform = result
-            await update.message.reply_text(
-                f'✅ {translate("Chat linked successfully!")}\n'
-                f'{translate("Linked to")} {linked_platform} (chat {linked_chat_id})',
-                parse_mode=ParseMode.HTML
-            )
-        else:
-            await update.message.reply_text(
-                f'❌ {translate("Invalid or expired link code.")}',
-                parse_mode=ParseMode.HTML
-            )
-        return
-
-    # Generate new secret
-    secret = db.create_chat_link(this_chat_id)
-    await update.message.reply_text(
-        f'🔗 {translate("Link code generated:")}\n\n'
-        f'<code>{secret}</code>\n\n'
-        f'{translate("Send this code in the other messenger chat using /link command.")}',
-        parse_mode=ParseMode.HTML
-    )
-
-
-@logger.catch
-@make_translatable_user_id_context
-async def unlink_chat(update, context):
-    """Remove link with another platform chat (/unlink command)."""
-    translate = context.user_data['translate']
-    this_chat_id = update.message.chat_id
-    new_chat_id_memoization(this_chat_id, update.message.from_user.language_code)
-
-    if db.unlink_chat(this_chat_id):
-        await update.message.reply_text(f'✅ {translate("Chat unlinked successfully.")}')
-    else:
-        await update.message.reply_text(f'{translate("This chat is not linked to any other chat.")}')
+# Removed legacy Maxwell linking functions
 
 
 @logger.catch
@@ -833,12 +791,7 @@ You can find USERID by command /stat
 /stat
 This group members statistics (registrations and penalties)
 
-/link [CODE]
-Link this chat with another messenger. Without CODE - generates new code.
-With CODE - completes linking with chat that generated the code.
-
-/unlink
-Remove link with another messenger chat.
+# Removed legacy /link and /unlink help text
 """)
     await context.bot.send_message(update.message.chat_id, event_text, parse_mode=ParseMode.HTML)
 
@@ -909,6 +862,16 @@ async def main():
     # Initialize database tables and run migrations
     db.init_database()
 
+    # Start health-check server (background)
+    port = int(os.getenv("PORT", "10000"))
+    try:
+        health_server = await asyncio.start_server(health_check_handler, '0.0.0.0', port)
+        logger.info(f"Health-check server started on port {port}")
+        # Keep the server running in the background
+        asyncio.create_task(health_server.serve_forever())
+    except Exception as e:
+        logger.warning(f"Could not start health-check server on port {port}: {e}")
+
     # Load known chat IDs
     global KNOWN_CHAT_IDS
     KNOWN_CHAT_IDS = db.get_all_chat_ids()
@@ -930,8 +893,6 @@ async def main():
     application.add_handler(CommandHandler('event_datetime', set_event_datetime))
     application.add_handler(CommandHandler('pay', confirm_payment))
     application.add_handler(CommandHandler('payments', show_payments))
-    application.add_handler(CommandHandler('link', link_chat))
-    application.add_handler(CommandHandler('unlink', unlink_chat))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(MessageHandler(filters.TEXT | filters.StatusUpdate.NEW_CHAT_MEMBERS, unknown_command_handler))
 
