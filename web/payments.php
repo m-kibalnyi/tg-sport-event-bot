@@ -1,30 +1,57 @@
 <?php
 /**
- * Payment log page for Sport Event Bot
+ * Payment log page for Sport Event Bot (PostgreSQL version)
  * Usage: payments.php?event=123 or payments.php?chat=456
- *
- * Parameters:
- *   event - event_id to show payments for specific event
- *   chat  - chat_id to show payments for latest open event in chat
  */
 
-// Load configuration
+// Load configuration from config.php or environment
 $config_file = __DIR__ . '/config.php';
-if (!file_exists($config_file)) {
-    die('Configuration file not found. Copy config.example.php to config.php');
+$env_file = __DIR__ . '/../.env';
+
+if (file_exists($config_file)) {
+    require_once $config_file;
+} else {
+    // 1. Try to load from root .env.development or .env (for local dev)
+    $dev_env = __DIR__ . '/../.env.development';
+    if (file_exists($dev_env)) {
+        $env_file = $dev_env;
+    }
+
+    if (file_exists($env_file)) {
+        $lines = file($env_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line) || strpos($line, '#') === 0) continue;
+            if (strpos($line, '=') !== false) {
+                list($name, $value) = explode('=', $line, 2);
+                $name = trim($name);
+                $value = trim($value);
+                $value = trim($value, '"\''); // Remove optional quotes
+                putenv("$name=$value");
+                $_ENV[$name] = $value;
+            }
+        }
+    }
+
+    // 2. Define constants from environment variables (System or loaded from .env)
+    define('DB_TYPE', getenv('DB_TYPE') ?: 'pgsql');
+    define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+    define('DB_PORT', getenv('DB_PORT') ?: '5432');
+    define('DB_NAME', getenv('DB_NAME') ?: '');
+    define('DB_USER', getenv('DB_USER') ?: '');
+    define('DB_PASS', getenv('DB_PASS') ?: '');
+    define('DB_SSLMODE', getenv('DB_SSLMODE') ?: 'require');
 }
-require_once $config_file;
 
 // Database connection
 try {
-    $pdo = new PDO(
-        "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
-        DB_USER,
-        DB_PASS,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
+    $dsn = DB_TYPE . ":host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME;
+    if (DB_TYPE === 'pgsql' && defined('DB_SSLMODE')) {
+        $dsn .= ";sslmode=" . DB_SSLMODE;
+    }
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 } catch (PDOException $e) {
-    die('Database connection failed');
+    die('Database connection failed: ' . $e->getMessage());
 }
 
 // Get event_id from parameters
@@ -36,8 +63,8 @@ if (isset($_GET['event']) && is_numeric($_GET['event'])) {
 } elseif (isset($_GET['chat']) && is_numeric($_GET['chat'])) {
     $chat_id = (int)$_GET['chat'];
     // Get latest open event for this chat
-    $stmt = $pdo->prepare('SELECT event_id, description FROM Events WHERE chat_id = ? AND status = "Open" ORDER BY event_id DESC LIMIT 1');
-    $stmt->execute([$chat_id]);
+    $stmt = $pdo->prepare('SELECT event_id FROM Events WHERE chat_id = ? AND status = ? ORDER BY event_id DESC LIMIT 1');
+    $stmt->execute([$chat_id, 'Open']);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {
         $event_id = $row['event_id'];
@@ -49,7 +76,7 @@ if (!$event_id) {
 }
 
 // Get event info
-$stmt = $pdo->prepare('SELECT event_id, chat_id, description, datetime, status FROM Events WHERE event_id = ?');
+$stmt = $pdo->prepare('SELECT event_id, chat_id, description, datetime, status, blik_phone FROM Events WHERE event_id = ?');
 $stmt->execute([$event_id]);
 $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -57,42 +84,16 @@ if (!$event) {
     die('Event not found');
 }
 
-// Find all linked event IDs (including this one)
-$all_event_ids = [$event_id];
-$stmt = $pdo->prepare('SELECT event_id_2 FROM EventLinks WHERE event_id_1 = ?');
-$stmt->execute([$event_id]);
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $all_event_ids[] = (int)$row['event_id_2'];
-}
-$stmt = $pdo->prepare('SELECT event_id_1 FROM EventLinks WHERE event_id_2 = ?');
-$stmt->execute([$event_id]);
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $all_event_ids[] = (int)$row['event_id_1'];
-}
-$all_event_ids = array_unique($all_event_ids);
-$placeholders = implode(',', array_fill(0, count($all_event_ids), '?'));
-
-// Get payment log from all linked events
+// Get participants with payment status
 $stmt = $pdo->prepare("
-    SELECT u.first_name, u.last_name, u.username, pl.paid_at, pl.for_friend
-    FROM PaymentLog pl
-    LEFT JOIN Users u ON pl.payer_user_id = u.user_id
-    WHERE pl.event_id IN ($placeholders)
-    ORDER BY pl.paid_at ASC
-");
-$stmt->execute($all_event_ids);
-$payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Get participants with payment status from all linked events
-$stmt = $pdo->prepare("
-    SELECT p.event_id, u.user_id, u.first_name, u.last_name, u.username, p.paid, p.paid_at, e.platform
+    SELECT u.user_id, u.first_name, u.last_name, u.username, p.paid, p.paid_at, e.platform
     FROM Participants p
     LEFT JOIN Events e ON p.event_id = e.event_id
     LEFT JOIN Users u ON p.user_id = u.user_id AND u.platform = e.platform
-    WHERE p.event_id IN ($placeholders)
+    WHERE p.event_id = ?
     ORDER BY p.operation_datetime ASC
 ");
-$stmt->execute($all_event_ids);
+$stmt->execute([$event_id]);
 $participants = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Helper function to format name
@@ -148,6 +149,22 @@ $unpaid_count = $total_participants - $paid_count;
             margin-bottom: 20px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
+        .blik-info {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ffeeba;
+            text-align: center;
+            font-weight: bold;
+        }
+        .blik-phone {
+            font-size: 1.2em;
+            color: #000;
+            display: block;
+            margin-top: 5px;
+        }
         .stats {
             display: flex;
             gap: 15px;
@@ -187,7 +204,6 @@ $unpaid_count = $total_participants - $paid_count;
         }
         .list-item:last-child { border-bottom: none; }
         .list-item.paid { background: #f8fff8; }
-        .list-item.unpaid { background: #fff8f8; }
 
         .name { font-weight: 500; }
         .time { color: #888; font-size: 0.9em; }
@@ -199,7 +215,6 @@ $unpaid_count = $total_participants - $paid_count;
         }
         .badge.paid { background: #28a745; color: #fff; }
         .badge.unpaid { background: #dc3545; color: #fff; }
-        .badge.friend { background: #17a2b8; color: #fff; }
 
         .updated {
             text-align: center;
@@ -224,6 +239,13 @@ $unpaid_count = $total_participants - $paid_count;
         <?php endif; ?>
         <div><strong>Статус:</strong> <?= $event['status'] === 'Open' ? 'Открыто' : 'Закрыто' ?></div>
     </div>
+
+    <?php if ($event['blik_phone']): ?>
+    <div class="blik-info">
+        💳 Оплата через BLIK на номер:
+        <span class="blik-phone"><?= htmlspecialchars($event['blik_phone']) ?></span>
+    </div>
+    <?php endif; ?>
 
     <div class="stats">
         <div class="stat-box paid">
@@ -251,7 +273,7 @@ $unpaid_count = $total_participants - $paid_count;
                         <div>
                             <span class="name"><?= ($i + 1) ?>. <?= htmlspecialchars(formatName($p, true)) ?></span>
                             <?php if ($p['paid'] && $p['paid_at']): ?>
-                                <span class="time"><?= date('H:i', strtotime($p['paid_at'])) ?></span>
+                                <span class="time"><?= date('H:i', strtotime($p['paid_at'] ?? 'now')) ?></span>
                             <?php endif; ?>
                         </div>
                         <span class="badge <?= $p['paid'] ? 'paid' : 'unpaid' ?>">
@@ -262,25 +284,6 @@ $unpaid_count = $total_participants - $paid_count;
             <?php endif; ?>
         </div>
     </div>
-
-    <?php if (!empty($payments)): ?>
-    <div class="section">
-        <h2>Лог оплат</h2>
-        <div class="list">
-            <?php foreach ($payments as $payment): ?>
-                <div class="list-item">
-                    <div>
-                        <span class="name"><?= htmlspecialchars(formatName($payment)) ?></span>
-                        <span class="time"><?= date('H:i', strtotime($payment['paid_at'])) ?></span>
-                    </div>
-                    <span class="badge <?= $payment['for_friend'] ? 'friend' : 'paid' ?>">
-                        <?= $payment['for_friend'] ? 'За друга' : 'За себя' ?>
-                    </span>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-    <?php endif; ?>
 
     <div class="updated">
         Обновлено: <?= date('Y-m-d H:i:s') ?>

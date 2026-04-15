@@ -22,10 +22,12 @@ import parsedatetime
 import urllib.request
 import urllib.parse
 import urllib.error
+import random
 from html.parser import HTMLParser
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
+load_dotenv(".env.development") # Load dev env first if exists
 load_dotenv()
 
 # Support both package mode and standalone mode
@@ -148,23 +150,35 @@ def make_translatable_user_id_context(func):
     """Декоратор для установки функции перевода в context.user_data"""
     @wraps(func)
     async def wrapped(update, context):
-        try:
-            lang = update.message.from_user.language_code if update.message else update.callback_query.from_user.language_code
-            # Если language_code равен None, используем русский по умолчанию
-            if not lang:
-                lang = 'ru'
-            logger.info(f'lang={lang}')
-        except Exception:
-            lang = 'ru'
-            logger.info("Failed to detect language, defaulting to 'ru'")
+        user_id = None
+        if update.message:
+            user_id = update.message.from_user.id
+        elif update.callback_query:
+            user_id = update.callback_query.from_user.id
+
+        lang = 'ru'  # Default to Russian
+        if user_id:
+            try:
+                # 1. Start with 'ru' default or user preference
+                db_lang = db.get_user_lang(user_id)
+                if db_lang:
+                    lang = db_lang
+                else:
+                    # 2. Fallback to Telegram language code if no preference
+                    tg_lang = (update.message.from_user.language_code if update.message 
+                               else update.callback_query.from_user.language_code)
+                    if tg_lang in TRANSLATIONS:
+                        lang = tg_lang
+            except Exception as e:
+                logger.warning(f"Language detection failed for user {user_id}: {e}")
+
         if lang in TRANSLATIONS:
             context.user_data['translate'] = TRANSLATIONS[lang]
         else:
-            # Английский и другие неподдерживаемые языки используют оригинальный текст (без перевода)
+            # English and other unsupported languages use original text
             context.user_data['translate'] = lambda text: text
-            # Не логируем для 'en' - это базовый язык интерфейса
             if lang != 'en':
-                logger.info(f"No translation available for language: {lang}, using English (original text)")
+                logger.info(f"No translation available for language: {lang}, using English")
         return await func(update, context)
     return wrapped
 	
@@ -186,7 +200,7 @@ def new_chat_id_memoization(chat_id: int, lang: str):
         logger.info(f'New chat_id: {chat_id}')
 
 @logger.catch
-def build_message_markup(translate_func: Callable[[str], str]):
+def build_message_markup(translate_func: Callable[[str], str], extra1: Optional[str] = None):
     """Создание кнопок с использованием переданной функции перевода"""
     rows = [
         [InlineKeyboardButton(translate_func('+ Apply for participation'), callback_data='ADD')],
@@ -195,6 +209,21 @@ def build_message_markup(translate_func: Callable[[str], str]):
         [InlineKeyboardButton(translate_func('- Remove last friend or legioneer'), callback_data='REMOVE_LEGIONEER')],
         [InlineKeyboardButton(translate_func('💰 Payment confirmed'), callback_data='PAY')],
     ]
+    
+    # Shuffle buttons
+    if extra1:
+        # Shuffled state: Reshuffle, +1 team, -1 team
+        rows.append([
+            InlineKeyboardButton(translate_func('Shuffle (reshuffle)'), callback_data='RESHUFFLE'),
+            InlineKeyboardButton(translate_func('Team count (+1)'), callback_data='INC_TEAMS'),
+            InlineKeyboardButton(translate_func('Team count (-1)'), callback_data='DEC_TEAMS')
+        ])
+    else:
+        # Not shuffled state: Initial Shuffle
+        rows.append([
+            InlineKeyboardButton(translate_func('Shuffle (перемешать)'), callback_data='SHUFFLE')
+        ])
+        
     return InlineKeyboardMarkup(rows)
 
 @logger.catch
@@ -209,14 +238,18 @@ async def button(update, context):
 
     if query.data == "ADD":
         db.apply_for_participation_in_the_event(this_chat_id, user_id)
+        db.set_event_extra1(this_chat_id, None) # Clear shuffle on change
     elif query.data == "REMOVE":
         db.revoke_application_for_the_event(this_chat_id, user_id)
+        db.set_event_extra1(this_chat_id, None) # Clear shuffle on change
     elif query.data == "ADD_LEGIONEER":
         db.apply_for_legioneer(this_chat_id, user_id)
         await legioneer_added_message(update, context)
+        db.set_event_extra1(this_chat_id, None) # Clear shuffle on change
     elif query.data == "REMOVE_LEGIONEER":
         db.revoke_for_legioneer(this_chat_id)
         await legioneer_removed_message(update, context)
+        db.set_event_extra1(this_chat_id, None) # Clear shuffle on change
     elif query.data == "PAY":
         result = db.process_payment(this_chat_id, user_id)
         await query.answer(translate(result['message']))
@@ -230,12 +263,46 @@ async def button(update, context):
                 db.set_event_telegraph_url(this_chat_id, new_tph_url)
             except Exception as e:
                 logger.warning(f"Telegraph update failed: {e}")
+    
+    elif query.data in ["SHUFFLE", "RESHUFFLE", "INC_TEAMS", "DEC_TEAMS"]:
+        players = db.get_event_users(this_chat_id) or []
+        if players:
+            extra1 = db.get_event_extra1(this_chat_id)
+            num_teams = 2
+            if extra1:
+                try:
+                    data = json.loads(extra1)
+                    num_teams = data.get('num_teams', 2)
+                except:
+                    pass
+            
+            if query.data == "INC_TEAMS":
+                num_teams += 1
+            elif query.data == "DEC_TEAMS":
+                num_teams = max(2, num_teams - 1)
+            
+            random.shuffle(players)
+            teams = {}
+            for i in range(num_teams):
+                team_name = f"{translate('Team')} {i+1}"
+                teams[team_name] = []
+            
+            for i, p in enumerate(players):
+                team_idx = i % num_teams
+                team_name = f"{translate('Team')} {team_idx+1}"
+                teams[team_name].append(p)
+            
+            new_data = {"num_teams": num_teams, "teams": teams}
+            db.set_event_extra1(this_chat_id, json.dumps(new_data, ensure_ascii=False))
+        else:
+            await query.answer(translate("No players to shuffle"))
 
     payment_url = db.get_event_payment_url(this_chat_id)
     telegraph_url = db.get_event_telegraph_url(this_chat_id)
+    extra1 = db.get_event_extra1(this_chat_id)
     message_text = create_event_full_text(this_chat_id, translate, payment_url, telegraph_url)
     safe_text = (message_text or "").strip() or " "
-    new_kb = build_message_markup(translate)
+    new_kb = build_message_markup(translate, extra1)
     new_kb_sig = _serialize_inline_kb(new_kb)
 
     # Текущее сохранённое состояние
@@ -268,6 +335,13 @@ async def button(update, context):
                 logger.exception(e)
 
     # Removed cross-platform sync logic
+
+    elif query.data.startswith("SET_LANG_"):
+        new_lang = query.data.split("_")[-1]
+        db.set_user_lang(user_id, new_lang)
+        context.user_data['translate'] = TRANSLATIONS.get(new_lang, lambda t: t)
+        await query.answer(context.user_data['translate']("Language updated"))
+        await show_info(update, context)
 
     await query.answer()
 
@@ -374,7 +448,7 @@ async def create_new_event(update, context):
         message_text = " "
     new_message = await context.bot.send_message(
         this_chat_id, message_text,
-        reply_markup=build_message_markup(translate),
+        reply_markup=build_message_markup(translate, None),
         parse_mode=ParseMode.HTML, disable_web_page_preview=True
     )
     db.event_add(this_chat_id, event_text, event_datetime, event_limit, new_message.message_id, message_text)
@@ -462,12 +536,58 @@ def create_event_full_text(this_chat_id: int, translate: Callable[[str], str],
             pass
     elif telegraph_url:
         links.append(f'<a href="{telegraph_url}">{translate("Current payments")}</a>')
+    
+    # BLIK Phone
+    blik_phone = db.get_event_blik_phone(this_chat_id)
+    if blik_phone:
+        links.append(f'<b>BLIK:</b> <code>{blik_phone}</code>')
+
     if links:
         text += ' | '.join(links) + '\n\n'
 
     text += translate('Players list') + ':\n'
     text_players = ''
     players = db.get_event_users(this_chat_id) or []
+    
+    extra1 = db.get_event_extra1(this_chat_id)
+    teams_data = None
+    if extra1:
+        try:
+            teams_data = json.loads(extra1)
+        except Exception:
+            pass
+
+    if teams_data and 'teams' in teams_data:
+        # Render grouped by teams
+        for team_name, player_ids in teams_data['teams'].items():
+            text_players += f"\n<b>{team_name}:</b>\n"
+            for i, uid in enumerate(player_ids, 1):
+                full_name = db.compose_full_name(uid)
+                # Determine emoji: ✅ for regular, ➕ for legioneer (10-29)
+                emoji = "➕ " if 10 <= uid < 30 else "✅ "
+                
+                # Check for cards/penalties
+                games, penalties = db.get_chat_user_rp(this_chat_id, uid)
+                printable_name = player_name_with_cards(games, penalties, full_name, translate)
+                
+                text_players += f"  {i}. {emoji}{printable_name}\n"
+    else:
+        # Render plain list
+        for i, uid in enumerate(players, 1):
+            full_name = db.compose_full_name(uid)
+            # Determine emoji
+            emoji = "➕ " if 10 <= uid < 30 else "✅ "
+            
+            # Check for cards/penalties
+            games, penalties = db.get_chat_user_rp(this_chat_id, uid)
+            printable_name = player_name_with_cards(games, penalties, full_name, translate)
+            
+            # Application number and limit logic
+            prefix = f"{i}. "
+            if players_limit and i > players_limit:
+                prefix = f"{i}. (WAIT) "
+            
+            text_players += f"{prefix}{emoji}{printable_name}\n"
 
     text += '\n' + text_players
     total_players = len(players)
@@ -496,6 +616,7 @@ async def show_info(update, context):
         return
     payment_url = db.get_event_payment_url(this_chat_id)
     telegraph_url = db.get_event_telegraph_url(this_chat_id)
+    extra1 = db.get_event_extra1(this_chat_id)
     event_text = create_event_full_text(this_chat_id, translate, payment_url, telegraph_url).strip() or " "
     latest_bot_message_id = db.get_latest_bot_message_id(this_chat_id)
     if latest_bot_message_id:
@@ -505,7 +626,7 @@ async def show_info(update, context):
             logger.warning(f"Failed to clear reply markup: {e}")
     new_message = await context.bot.send_message(
         this_chat_id, event_text,
-        reply_markup=build_message_markup(translate),
+        reply_markup=build_message_markup(translate, extra1),
         parse_mode=ParseMode.HTML, disable_web_page_preview=True
     )
     db.save_latest_bot_message(this_chat_id, new_message.message_id, event_text)
@@ -781,6 +902,12 @@ Confirm payment for the event
 /payments
 Show payment log for the current event
 
+/blik PHONE
+Set BLIK phone number for the current event
+
+/lang
+Change bot language settings
+
 /fix
 Fix event statistics (increment participants counters)
 
@@ -794,6 +921,36 @@ This group members statistics (registrations and penalties)
 # Removed legacy /link and /unlink help text
 """)
     await context.bot.send_message(update.message.chat_id, event_text, parse_mode=ParseMode.HTML)
+
+@logger.catch
+@make_translatable_user_id_context
+async def set_language(update, context):
+    translate = context.user_data['translate']
+    keyboard = [
+        [InlineKeyboardButton("Русский 🇷🇺", callback_data='SET_LANG_ru')],
+        [InlineKeyboardButton("Українська 🇺🇦", callback_data='SET_LANG_uk')],
+        [InlineKeyboardButton("Português 🇵🇹", callback_data='SET_LANG_pt')],
+        [InlineKeyboardButton("العربية 🇸🇦", callback_data='SET_LANG_ar')],
+        [InlineKeyboardButton("English 🇬🇧", callback_data='SET_LANG_en')],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(translate("Choose your language:"), reply_markup=reply_markup)
+
+@logger.catch
+@make_translatable_user_id_context
+async def set_blik(update, context):
+    translate = context.user_data['translate']
+    this_chat_id = update.message.chat_id
+    phone = parse_cmd_arg(update, context)
+    if not phone:
+        await update.message.reply_text(translate("Usage: /blik PHONE"))
+        return
+    if not db.get_event_text(this_chat_id):
+        await update.message.reply_text(translate("No active event found."))
+        return
+    db.set_event_blik_phone(this_chat_id, phone)
+    await update.message.reply_text(f"BLIK: {phone}")
+    await show_info(update, context)
 
 @logger.catch
 @make_translatable_user_id_context
@@ -893,6 +1050,8 @@ async def main():
     application.add_handler(CommandHandler('event_datetime', set_event_datetime))
     application.add_handler(CommandHandler('pay', confirm_payment))
     application.add_handler(CommandHandler('payments', show_payments))
+    application.add_handler(CommandHandler('blik', set_blik))
+    application.add_handler(CommandHandler('lang', set_language))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(MessageHandler(filters.TEXT | filters.StatusUpdate.NEW_CHAT_MEMBERS, unknown_command_handler))
 

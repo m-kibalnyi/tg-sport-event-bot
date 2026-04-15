@@ -283,3 +283,15 @@ msgstr "скорее всего за себя"
 #: bot.py
 msgid "marked payment at"
 msgstr "сообщил об оплате в"
+
+#: bot.py
+msgid "Language updated"
+msgstr "Язык обновлён"
+
+#: bot.py
+msgid "Choose your language:"
+msgstr "Выберите язык:"
+
+#: bot.py
+msgid "Usage: /blik PHONE"
+msgstr "Используйте: /blik НОМЕР_ТЕЛЕФОНА"

@@ -13,6 +13,7 @@ from psycopg2 import sql, extras
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
+load_dotenv(".env.development") # Load dev env first if exists
 load_dotenv()
 
 # Fixed platform for this bot
@@ -65,10 +66,13 @@ def create_table_users():
             birth_date VARCHAR(32)  DEFAULT '',
             phone      VARCHAR(64)  DEFAULT '',
             facebook   VARCHAR(255) DEFAULT '',
+            lang       VARCHAR(8) DEFAULT 'ru',
             extra      TEXT,
             PRIMARY KEY (user_id, platform)
         );
     ''')
+    # Migration: add lang if missing
+    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'lang') THEN ALTER TABLE Users ADD COLUMN lang VARCHAR(8) DEFAULT 'ru'; END IF; END $$;")
     
     # Insert legioneer users for this platform
     rows = [(uid, PLATFORM, 'Legioneer') for uid in range(10, 30)]
@@ -109,6 +113,7 @@ def create_table_events():
             players_limit INT DEFAULT 0,
             payment_url TEXT DEFAULT NULL,
             telegraph_url TEXT DEFAULT NULL,
+            blik_phone VARCHAR(32) DEFAULT NULL,
             extra1 TEXT,
             extra2 TEXT,
             extra3 TEXT,
@@ -118,6 +123,8 @@ def create_table_events():
         );
     ''')
     _exec(conn, 'CREATE INDEX IF NOT EXISTS idx_events_chat_platform ON Events (chat_id, platform);')
+    # Migration: add blik_phone if missing
+    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'events'::regclass AND attname = 'blik_phone') THEN ALTER TABLE Events ADD COLUMN blik_phone VARCHAR(32) DEFAULT NULL; END IF; END $$;")
     conn.close()
 
 def create_table_participants():
@@ -255,6 +262,18 @@ def set_event_payment_url(chat_id: int, url: Optional[str]):
     _exec(conn, 'UPDATE Events SET payment_url = %s WHERE status = %s AND chat_id = %s AND platform = %s;', (url, 'Open', chat_id, PLATFORM))
     conn.close()
 
+def get_event_extra1(chat_id: int) -> Optional[str]:
+    conn = reconnect()
+    cur = _exec(conn, "SELECT extra1 FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;", (chat_id, PLATFORM))
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def set_event_extra1(chat_id: int, text: Optional[str]):
+    conn = reconnect()
+    _exec(conn, "UPDATE Events SET extra1 = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;", (text, chat_id, PLATFORM))
+    conn.close()
+
 def get_event_telegraph_url(chat_id: int) -> Optional[str]:
     conn = reconnect()
     cur = _exec(conn, 'SELECT telegraph_url FROM Events WHERE status=%s AND chat_id = %s AND platform = %s LIMIT 1;', ('Open', chat_id, PLATFORM))
@@ -368,6 +387,30 @@ def get_chat_lang(chat_id: int) -> str:
 def set_chat_lang(chat_id: int, lang: str):
     conn = reconnect()
     _exec(conn, 'UPDATE Chats SET lang = %s WHERE chat_id = %s AND platform = %s;', (lang, chat_id, PLATFORM))
+    conn.close()
+
+def get_user_lang(user_id: int) -> str:
+    conn = reconnect()
+    cur = _exec(conn, 'SELECT lang FROM Users WHERE user_id = %s AND platform = %s;', (user_id, PLATFORM))
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row and row[0] else 'ru'
+
+def set_user_lang(user_id: int, lang: str):
+    conn = reconnect()
+    _exec(conn, 'UPDATE Users SET lang = %s WHERE user_id = %s AND platform = %s;', (lang, user_id, PLATFORM))
+    conn.close()
+
+def get_event_blik_phone(chat_id: int) -> Optional[str]:
+    conn = reconnect()
+    cur = _exec(conn, "SELECT blik_phone FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;", (chat_id, PLATFORM))
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row and row[0] else None
+
+def set_event_blik_phone(chat_id: int, phone: str):
+    conn = reconnect()
+    _exec(conn, "UPDATE Events SET blik_phone = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;", (phone, chat_id, PLATFORM))
     conn.close()
 
 def get_event_users(chat_id: int) -> List[int]:
