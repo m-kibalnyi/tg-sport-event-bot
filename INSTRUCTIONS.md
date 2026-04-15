@@ -56,7 +56,11 @@ Render is the easiest way to get started.
     - **Start Command**: `python3 -m sport_event_bot.bot`
 4.  **Add Environment Variables**:
     Go to the "Env Vars" tab and add all the variables from your `.env` file.
-5.  **Note on Free Tier**: Render's free Web Services sleep after 15 minutes of inactivity. For a Telegram bot, this means the first message might be delayed while it wakes up. To prevent this, you can use a free "uptime" service (like Cron-job.org) to ping your Render URL every 10 minutes.
+    - `TELEGRAM_BOT_TOKEN`
+    - `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `DB_SSLMODE`
+    - `PORT` (Optional, Render sets this automatically to 10000)
+5.  **Note on Health Checks**: The bot now includes a built-in health-check server that listens on the Render-provided `PORT`. This prevents Render's Free Tier from repeatedly restarting the service.
+
 
 ### Option B: OCI / AWS Always Free (Recommended for Performance)
 This is slightly more advanced but provides a 24/7 "always-on" bot.
