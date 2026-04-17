@@ -62,7 +62,13 @@ async def event_ask_step(update, context, step):
             else: await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
             return EVENT_SET_LIMIT
         else:
-            kb = InlineKeyboardMarkup([[InlineKeyboardButton("14", callback_data="EV_LIMIT_14"), InlineKeyboardButton("16", callback_data="EV_LIMIT_16")], [InlineKeyboardButton("18", callback_data="EV_LIMIT_18"), InlineKeyboardButton("21", callback_data="EV_LIMIT_21")]])
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton(translate("Limit") + ":", callback_data="IGNORE"),
+                InlineKeyboardButton("14", callback_data="EV_LIMIT_14"),
+                InlineKeyboardButton("16", callback_data="EV_LIMIT_16"),
+                InlineKeyboardButton("18", callback_data="EV_LIMIT_18"),
+                InlineKeyboardButton("21", callback_data="EV_LIMIT_21")
+            ]])
             txt = translate("Select player limit (default 14):")
             if query: await query.edit_message_text(txt, reply_markup=kb)
             else: await update.message.reply_text(txt, reply_markup=kb)
@@ -129,6 +135,7 @@ async def event_callback(update, context):
     await query.answer()
     data = context.user_data['new_event_data']
     cb = query.data
+    if cb == "IGNORE": return EVENT_SET_LIMIT
     if cb == "CONF_NAME": return await event_ask_step(update, context, EVENT_SET_LIMIT)
     elif cb == "CHG_NAME": data['name'] = None; return await event_ask_step(update, context, EVENT_SET_NAME)
     elif cb == "CONF_LIMIT": return await event_ask_step(update, context, EVENT_SET_DATETIME)

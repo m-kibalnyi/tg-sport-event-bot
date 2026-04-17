@@ -319,3 +319,14 @@ msgstr "- Всех"
 
 msgid "Only admins or event creator can close the collection"
 msgstr "Только администраторы или создатель события могут закрыть сбор"
+
+msgid "Event"
+msgstr "Ивент"
+
+msgid "Statistics"
+msgstr "Статистика"
+
+msgid "Logs"
+msgstr "Логи"
+msgid "Limit"
+msgstr "Лимит"

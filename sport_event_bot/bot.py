@@ -51,10 +51,15 @@ async def shutdown(application, health_server=None):
         await health_server.wait_closed()
         logger.info("Health server closed")
         
+    # Stop updater if it's running
+    if application.updater and application.updater.running:
+        await application.updater.stop()
+        
     if application.running:
         await application.stop()
-    if application.is_initialized:
-        await application.shutdown()
+    
+    # application.shutdown() is safe to call as it checks internally if initialized
+    await application.shutdown()
     logger.info("Bot shutdown complete")
 
 async def main():

@@ -23,26 +23,42 @@ async def button(update, context):
     db.add_or_update_user(user_id, query.from_user.first_name, query.from_user.last_name, query.from_user.username)
 
     data = query.data
+    if data == "IGNORE":
+        await query.answer()
+        return
+        
     if data == "ADD":
         db.apply_for_participation_in_the_event(chat_id, user_id)
         db.set_event_extra1(chat_id, None)
+        event_id = db.get_event_id_by_chat_id(chat_id)
+        if event_id: await log_event(chat_id, event_id, f"User {query.from_user.first_name} joined event", context)
     elif data == "REMOVE":
         db.revoke_application_for_the_event(chat_id, user_id)
         db.set_event_extra1(chat_id, None)
+        event_id = db.get_event_id_by_chat_id(chat_id)
+        if event_id: await log_event(chat_id, event_id, f"User {query.from_user.first_name} left event", context)
     elif data == "THINK":
         db.apply_for_thinking(chat_id, user_id)
         db.set_event_extra1(chat_id, None)
+        event_id = db.get_event_id_by_chat_id(chat_id)
+        if event_id: await log_event(chat_id, event_id, f"User {query.from_user.first_name} is thinking", context)
     elif data == "ADD_LEGIONEER":
         db.apply_for_legioneer(chat_id, user_id)
         await legioneer_added_message(update, context)
         db.set_event_extra1(chat_id, None)
+        event_id = db.get_event_id_by_chat_id(chat_id)
+        if event_id: await log_event(chat_id, event_id, f"User {query.from_user.first_name} added guest player", context)
     elif data == "REMOVE_LEGIONEER":
         db.revoke_for_legioneer(chat_id)
         await legioneer_removed_message(update, context)
         db.set_event_extra1(chat_id, None)
+        event_id = db.get_event_id_by_chat_id(chat_id)
+        if event_id: await log_event(chat_id, event_id, f"User {query.from_user.first_name} removed guest player", context)
     elif data == "REMOVE_ALL_LEGIONEERS":
         db.revoke_all_user_legioneers(chat_id, user_id)
         db.set_event_extra1(chat_id, None)
+        event_id = db.get_event_id_by_chat_id(chat_id)
+        if event_id: await log_event(chat_id, event_id, f"User {query.from_user.first_name} removed all guest players", context)
     elif data == "PAY":
         result = db.process_payment(chat_id, user_id)
         import os

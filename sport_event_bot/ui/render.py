@@ -69,12 +69,10 @@ def create_event_full_text(chat_id: int, translate) -> str:
                 separator = '&' if '?' in u else '?'
                 full_pay_url = f"{u}{separator}event={event_id}"
                 
-                header += f'💳 <a href="{full_pay_url}"><b>{translate("Payment link")}</b></a>\n'
                 main_link_added = True
         
         if not main_link_added:
             if payment_url:
-                header += f'💳 <a href="{payment_url}"><b>{translate("Payment link")}</b></a>\n'
                 main_link_added = True
             elif telegraph_url:
                 header += f'📝 <a href="{telegraph_url}"><b>{translate("Current payments")}</b></a>\n'
@@ -94,15 +92,13 @@ def create_event_full_text(chat_id: int, translate) -> str:
 
             links = []
             if event_id:
-                links.append(f'<a href="{base_url}/event.php?event={event_id}">{translate("Payments")} П</a>')
-                links.append(f'<a href="{base_url}/statistics.php?chat={chat_id}">{translate("Stats")} С</a>')
-                links.append(f'<a href="{base_url}/logs/">{translate("Logs")} Л</a>')
-                links.append(f'<a href="{base_url}/event_logs.php?event={event_id}">{translate("Event Logs")} ИЛ</a>')
+                links.append(f'<a href="{base_url}/event.php?event={event_id}">{translate("Event")}</a>')
+                links.append(f'<a href="{base_url}/statistics.php?chat={chat_id}">{translate("Statistics")}</a>')
+                links.append(f'<a href="{base_url}/event_logs.php?event={event_id}">{translate("Logs")}</a>')
             else:
-                links.append(f'<a href="{base_url}/event.php">{translate("Payments")} П</a>')
-                links.append(f'<a href="{base_url}/statistics.php?chat={chat_id}">{translate("Stats")} С</a>')
-                links.append(f'<a href="{base_url}/logs/">{translate("Logs")} Л</a>')
-                links.append(f'<a href="{base_url}/event_logs.php">{translate("Event Logs")} ИЛ</a>')
+                links.append(f'<a href="{base_url}/event.php">{translate("Event")}</a>')
+                links.append(f'<a href="{base_url}/statistics.php?chat={chat_id}">{translate("Statistics")}</a>')
+                links.append(f'<a href="{base_url}/event_logs.php">{translate("Logs")}</a>')
             header += f"🔗 {' | '.join(links)}\n"
 
         # Participants

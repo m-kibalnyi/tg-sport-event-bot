@@ -45,6 +45,8 @@ async def add_leg(update, context):
     if not update.message: return
     chat_id = update.message.chat_id
     db.apply_for_legioneer(chat_id, update.effective_user.id)
+    event_id = db.get_event_id_by_chat_id(chat_id)
+    if event_id: await log_event(chat_id, event_id, f"User {update.effective_user.first_name} added guest player via command", context)
     await show_info(update, context)
 
 @logger.catch
@@ -53,6 +55,8 @@ async def rem_leg(update, context):
     if not update.message: return
     chat_id = update.message.chat_id
     db.revoke_for_legioneer(chat_id)
+    event_id = db.get_event_id_by_chat_id(chat_id)
+    if event_id: await log_event(chat_id, event_id, f"User {update.effective_user.first_name} removed guest player via command", context)
     await show_info(update, context)
 
 async def legioneer_added_message(update, context):

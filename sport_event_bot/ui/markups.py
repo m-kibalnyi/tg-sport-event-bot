@@ -36,9 +36,11 @@ def build_message_markup(translate_func: Callable[[str], str], extra1: Optional[
         ])
         
     rows.append([
-        InlineKeyboardButton(translate_func('Limit: 14'), callback_data='SET_LIMIT_14'),
-        InlineKeyboardButton(translate_func('Limit: 16'), callback_data='SET_LIMIT_16'),
-        InlineKeyboardButton(translate_func('Limit: 21'), callback_data='SET_LIMIT_21')
+        InlineKeyboardButton(translate_func('Limit') + ":", callback_data='IGNORE'),
+        InlineKeyboardButton('14', callback_data='SET_LIMIT_14'),
+        InlineKeyboardButton('16', callback_data='SET_LIMIT_16'),
+        InlineKeyboardButton('18', callback_data='SET_LIMIT_18'),
+        InlineKeyboardButton('21', callback_data='SET_LIMIT_21')
     ])
         
     return InlineKeyboardMarkup(rows)
