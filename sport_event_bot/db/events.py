@@ -3,11 +3,15 @@ import datetime
 from typing import Optional
 try:
     from sport_event_bot.db.base import reconnect, _exec, PLATFORM
+    from sport_event_bot.db.chats import register_new_chat_id
 except (ImportError, ValueError):
     from .base import reconnect, _exec, PLATFORM
+    from .chats import register_new_chat_id
 
 def event(chat_id: int, description: str, dt: datetime.datetime, limit: int, 
           msg_id: int, full_text: str, creator_id: int, location: str = None):
+    # Ensure chat is registered (FK constraint)
+    register_new_chat_id(chat_id, 'ru')
     conn = reconnect()
     dt_str = dt.strftime('%Y-%m-%d %H:%M')
     _exec(conn, '''

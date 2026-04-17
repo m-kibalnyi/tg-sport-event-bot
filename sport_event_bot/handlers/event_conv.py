@@ -180,6 +180,9 @@ async def finalize_event_creation(update, context):
     if lists_thread_id is None and update.effective_message and update.effective_message.is_topic_message:
         lists_thread_id = update.effective_message.message_thread_id
     
+    # Ensure chat is registered (FK constraint)
+    db.register_new_chat_id(chat_id, 'ru')
+    
     logger.info(f"Finalizing event creation for chat {chat_id} in thread {lists_thread_id}")
     placeholder = await context.bot.send_message(chat_id, f"🎉 <b>{name}</b>...", parse_mode=ParseMode.HTML, message_thread_id=lists_thread_id)
     logger.info(f"Placeholder created with message_id {placeholder.message_id}")
