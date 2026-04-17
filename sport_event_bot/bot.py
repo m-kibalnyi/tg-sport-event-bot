@@ -6,6 +6,7 @@ import asyncio
 import warnings
 from loguru import logger
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ConversationHandler
+from telegram.request import HTTPXRequest
 from telegram.warnings import PTBUserWarning
 from dotenv import load_dotenv
 
@@ -43,14 +44,18 @@ async def health_check_handler(reader, writer):
     await writer.drain()
     writer.close()
 
-async def shutdown(application, loop):
+async def shutdown(application, health_server=None):
     logger.info("Shutting down bot...")
-    await application.stop()
-    await application.shutdown()
-    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-    for task in tasks: task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
-    loop.stop()
+    if health_server:
+        health_server.close()
+        await health_server.wait_closed()
+        logger.info("Health server closed")
+        
+    if application.running:
+        await application.stop()
+    if application.is_initialized:
+        await application.shutdown()
+    logger.info("Bot shutdown complete")
 
 async def main():
     warnings.filterwarnings("ignore", category=PTBUserWarning, message=".*per_message=False.*")
@@ -67,16 +72,20 @@ async def main():
     if not api_token: sys.exit("No bot token found")
 
     proxy_url = os.getenv('TELEGRAM_PROXY')
-    builder = Application.builder().token(api_token)
+    # Use custom timeouts to mitigate httpx.ReadError
+    request = HTTPXRequest(connect_timeout=15, read_timeout=20)
+    builder = Application.builder().token(api_token).request(request)
     if proxy_url: builder = builder.proxy(proxy_url).get_updates_proxy(proxy_url)
     application = builder.build()
 
     db.init_database()
     port = int(os.getenv("PORT", "10000"))
+    health_server = None
     try:
         health_server = await asyncio.start_server(health_check_handler, '0.0.0.0', port)
         asyncio.create_task(health_server.serve_forever())
-    except: pass
+    except Exception as e:
+        logger.warning(f"Failed to start health server: {e}")
 
     # Handlers
     application.add_handler(CommandHandler('start', common.start))
@@ -121,16 +130,24 @@ async def main():
     application.add_handler(MessageHandler(filters.StatusUpdate.FORUM_TOPIC_CREATED, msg_updates.forum_topic_created_handler))
     application.add_handler(MessageHandler(filters.TEXT | filters.StatusUpdate.NEW_CHAT_MEMBERS, msg_updates.unknown_command_handler))
 
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling()
-    
-    stop_event = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    def sig_handler(): stop_event.set()
-    for sig in (signal.SIGINT, signal.SIGTERM): loop.add_signal_handler(sig, sig_handler)
-    await stop_event.wait()
-    await shutdown(application, loop)
+    try:
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+        
+        stop_event = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        def sig_handler(): stop_event.set()
+        for sig in (signal.SIGINT, signal.SIGTERM): 
+            try: loop.add_signal_handler(sig, sig_handler)
+            except NotImplementedError: pass
+            
+        await stop_event.wait()
+    except Exception as e:
+        logger.error(f"Error in main loop: {e}")
+        raise
+    finally:
+        await shutdown(application, health_server)
 
 if __name__ == '__main__':
     loop = asyncio.new_event_loop()
