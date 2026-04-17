@@ -88,7 +88,7 @@ if (file_exists($log_file)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Журнал действий: <?= htmlspecialchars($event['description']) ?></title>
+    <title>Журнал действий: <?= htmlspecialchars($event['description'] ?? 'Событие') ?></title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -136,7 +136,7 @@ if (file_exists($log_file)) {
 </head>
 <body>
     <a href="event.php?event=<?= $event_id ?>" class="back-link">← К списку оплат</a>
-    <h1>Журнал действий: <?= htmlspecialchars($event['description']) ?></h1>
+    <h1>Журнал действий: <?= htmlspecialchars($event['description'] ?? 'Событие') ?></h1>
 
     <div class="log-container">
         <?php if (empty($logs) && empty($file_logs)): ?>
@@ -148,7 +148,7 @@ if (file_exists($log_file)) {
                 foreach ($logs as $l): ?>
                     <div class="log-item">
                         <span class="log-time"><?= date('Y-m-d H:i:s', strtotime($l['operation_datetime'])) ?> <span class="badge badge-db">DB</span></span>
-                        <span class="log-message"><?= htmlspecialchars($l['message']) ?></span>
+                        <span class="log-message"><?= htmlspecialchars($l['message'] ?? '') ?></span>
                     </div>
                 <?php endforeach; 
             endif; 

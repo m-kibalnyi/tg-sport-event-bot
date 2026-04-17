@@ -22,10 +22,15 @@ if parent_dir not in sys.path:
 # Support package/standalone imports
 try:
     from sport_event_bot import db_postgres as db
-    from sport_event_bot import common, event_conv, event_mgmt, player, admin, callback, msg_updates, event
+    from sport_event_bot.handlers import common, event_conv, event_mgmt, player, admin, callback, msg_updates, event
 except (ImportError, ValueError):
-    import db_postgres as db
-    from handlers import common, event_conv, event_mgmt, player, admin, callback, msg_updates, event
+    try:
+        import db_postgres as db
+        from handlers import common, event_conv, event_mgmt, player, admin, callback, msg_updates, event
+    except ImportError:
+        # Fallback when running as module but absolute imports fail
+        from . import db_postgres as db
+        from .handlers import common, event_conv, event_mgmt, player, admin, callback, msg_updates, event
 
 
 BOT_DIR = os.path.dirname(os.path.abspath(__file__))

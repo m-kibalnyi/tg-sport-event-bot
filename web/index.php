@@ -275,8 +275,8 @@ $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </div>
                                 <div class="meta-item">
                                     <span>📍</span>
-                                    <span class="<?= !$event['location'] ? 'no-location' : '' ?>">
-                                        <?= htmlspecialchars($event['location'] ?: 'Место не указано') ?>
+                                    <span class="<?= (empty($event['location']) || $event['location'] === 'null') ? 'no-location' : '' ?>">
+                                        <?= htmlspecialchars(($event['location'] ?? '') ?: 'Место не указано') ?>
                                     </span>
                                 </div>
                             </div>

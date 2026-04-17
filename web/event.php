@@ -76,7 +76,7 @@ if (!$event_id) {
 }
 
 // Get event info
-$stmt = $pdo->prepare('SELECT event_id, chat_id, description, datetime, status, blik_phone FROM Events WHERE event_id = ?');
+$stmt = $pdo->prepare('SELECT event_id, chat_id, description, datetime, status, blik_phone, location FROM Events WHERE event_id = ?');
 $stmt->execute([$event_id]);
 $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -236,6 +236,9 @@ $unpaid_count = $total_participants - $paid_count;
     <div class="event-info">
         <?php if ($event['datetime']): ?>
             <div><strong>Дата:</strong> <?= htmlspecialchars($event['datetime']) ?></div>
+        <?php endif; ?>
+        <?php if (!empty($event['location']) && $event['location'] !== 'null'): ?>
+            <div><strong>Место:</strong> <?= htmlspecialchars($event['location']) ?></div>
         <?php endif; ?>
         <div><strong>Статус:</strong> <?= $event['status'] === 'Open' ? 'Открыто' : 'Закрыто' ?></div>
         <div style="margin-top: 10px;">
