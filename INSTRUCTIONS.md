@@ -103,12 +103,26 @@ This is slightly more advanced but provides a 24/7 "always-on" bot.
 ---
 
 ## 3. Bot Features
-- **/event [description]**: Create a new football/sport event.
+- **/event [description]**: Create a new football/sport event (starts a guided conversation).
+- **/event {json_body}**: Pre-fill event details (see Advanced Event Creation below).
 - **/event_remove**: Close the current event.
 - **/info**: Show current event status and player list.
 - **Inline Buttons**: Players can sign up, cancel, or confirm payment directly via buttons.
 - **Localization**: Supports multiple languages based on user settings.
 
-## 4. Troubleshooting
+## 4. Advanced Event Creation
+You can bypass the step-by-step conversation by providing a JSON-like structure:
+```text
+/event {name: "Futsal Night", limit: 16, datetime: "Friday 20:00", location: "Stadium X", free: false}
+```
+**Supported Keys:**
+- `name`: (String) Name of the event.
+- `limit`: (Number) Player capacity.
+- `datetime`: (String) Time/Date (e.g., "tomorrow 18:00").
+- `location`: (String) Custom location name or map link. Use `"none"` to hide.
+- `free`: (Boolean) `true` for free, `false` for paid.
+- `blik`: (String) BLIK phone number for payments.
+
+## 5. Troubleshooting
 - **Database Connection**: Ensure `DB_SSLMODE=require` is set for Neon DB.
 - **Bot Not Responding**: Check logs with `journalctl -u sport-bot -f` (on Linux) or the Render logs.

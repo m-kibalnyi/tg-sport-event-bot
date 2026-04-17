@@ -15,7 +15,7 @@ def test_reserve_divider():
     bot.db.get_event_text.return_value = "Football Game"
     bot.db.get_event_limit.return_value = 2
     bot.db.get_event_datetime.return_value = "2026-04-20 18:00:00"
-    bot.db.get_event_users.return_value = [101, 102, 103, 104] # 4 players, limit is 2
+    bot.db.get_event_users.return_value = [(101, None), (102, None), (103, None), (104, None)] # 4 players, limit is 2
     bot.db.compose_full_name.side_effect = lambda uid: f"Player_{uid}"
     bot.db.get_chat_user_rp.return_value = (10, 0)
     bot.db.get_event_revoked_users.return_value = []
@@ -23,6 +23,7 @@ def test_reserve_divider():
     bot.db.get_active_penalties.return_value = []
     bot.db.get_event_payment_url.return_value = None
     bot.db.get_event_telegraph_url.return_value = None
+    bot.db.get_payment_status.return_value = False
     bot.db.get_event_blik_phone.return_value = None
     bot.db.get_event_extra1.return_value = None
     
@@ -31,10 +32,10 @@ def test_reserve_divider():
     print(result)
     
     assert "TR(RESERVE)" in result
-    assert "1. TR(✅)Player_101" in result
-    assert "2. TR(✅)Player_102" in result
-    assert "3. TR(✅)Player_103" in result
-    assert "4. TR(✅)Player_104" in result
+    assert "1. ✅ Player_101" in result
+    assert "2. ✅ Player_102" in result
+    assert "3. ✅ Player_103" in result
+    assert "4. ✅ Player_104" in result
     
     # Check if divider is between 2 and 3
     parts = result.split("=====================")

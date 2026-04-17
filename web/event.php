@@ -1,7 +1,7 @@
 <?php
 /**
- * Payment log page for Sport Event Bot (PostgreSQL version)
- * Usage: payments.php?event=123 or payments.php?chat=456
+ * Event details page for Sport Event Bot (PostgreSQL version)
+ * Usage: event.php?event=123 or event.php?chat=456
  */
 
 // Load configuration from config.php or environment
@@ -241,10 +241,6 @@ $unpaid_count = $total_participants - $paid_count;
         <div style="margin-top: 10px;">
             <a href="event_logs.php?event=<?= $event['event_id'] ?>" style="color: #007bff; text-decoration: none; font-size: 0.9em; font-weight: bold;">
                 📜 Посмотреть журнал действий
-            </a>
-            <span style="margin: 0 10px; color: #ccc;">|</span>
-            <a href="statistics.php?chat=<?= $event['chat_id'] ?>" style="color: #28a745; text-decoration: none; font-size: 0.9em; font-weight: bold;">
-                📊 Статистика
             </a>
         </div>
     </div>

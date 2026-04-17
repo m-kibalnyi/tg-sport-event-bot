@@ -1,0 +1,94 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: sport-event-bot\n"
+"POT-Creation-Date: 2026-04-16 12:20+0200\n"
+"PO-Revision-Date: 2026-04-16 12:20+0200\n"
+"Last-Translator: Antigravity\n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Choose your language:"
+msgstr "Wybierz swój język:"
+
+msgid "Welcome! Use /help to see available commands."
+msgstr "Witaj! Użyj /help, aby zobaczyć dostępne komendy."
+
+msgid "Close collection"
+msgstr "Zamknij zbiórkę"
+
+msgid "I am going"
+msgstr "Idę"
+
+msgid "I am not going"
+msgstr "Nie idę"
+
+msgid "Thinking"
+msgstr "Zastanawiam się"
+
+msgid "Plus +"
+msgstr "Plus +"
+
+msgid "Minus -"
+msgstr "Minus -"
+
+msgid "- All"
+msgstr "- Wszystkich"
+
+msgid "💰 Payment confirmed"
+msgstr "💰 Płatność potwierdzona"
+
+msgid "Players limit"
+msgstr "Limit graczy"
+
+msgid "Event date and time"
+msgstr "Data i czas wydarzenia"
+
+msgid "Event time out"
+msgstr "Koniec czasu wydarzenia"
+
+msgid "Time left"
+msgstr "Pozostały czas"
+
+msgid "days"
+msgstr "dni"
+
+msgid "and"
+msgstr "i"
+
+msgid "hours"
+msgstr "godzin"
+
+msgid "Location map"
+msgstr "Mapa dojazdu"
+
+msgid "💳 Payment link"
+msgstr "💳 Link do płatności"
+
+msgid "Current payments"
+msgstr "Aktualne wpłaty"
+
+msgid "Players list"
+msgstr "Lista graczy"
+
+msgid "RESERVE"
+msgstr "REZERWA"
+
+msgid "No applications yet"
+msgstr "Brak zgłoszeń"
+
+msgid "expires in"
+msgstr "wygaśnie za"
+
+msgid "Yellow Cards"
+msgstr "Żółte kartki"
+
+msgid "Language updated"
+msgstr "Język został zaktualizowany"
+
+msgid "What is the name of the event?"
+msgstr "Jaka jest nazwa wydarzenia?"
+
+msgid "Event created successfully!"
+msgstr "Wydarzenie zostało utworzone pomyślnie!"

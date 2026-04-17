@@ -135,7 +135,7 @@ if (file_exists($log_file)) {
     </style>
 </head>
 <body>
-    <a href="payments.php?event=<?= $event_id ?>" class="back-link">← К списку оплат</a>
+    <a href="event.php?event=<?= $event_id ?>" class="back-link">← К списку оплат</a>
     <h1>Журнал действий: <?= htmlspecialchars($event['description']) ?></h1>
 
     <div class="log-container">

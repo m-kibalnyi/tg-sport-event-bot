@@ -27,11 +27,19 @@ Originally created by KMiNT21 (2022), updated by wavcheb (2024), and refactored 
 For detailed instructions on production deployment (Render, OCI, AWS), see [INSTRUCTIONS.md](INSTRUCTIONS.md).
 
 ## 📦 Features
-- **Event management**: Date/time parsing for future matches.
+- **Event management**: Multi-step chat flow or JSON pre-fill for quick setup.
 - **Participant registration**: Interactive inline buttons for (+) Apply and (-) Revoke.
 - **Payment tracking**: Confirm payments with a 💰 emoji.
 - **Multi-language support**: RU, UK, PT, AR, EN.
 - **PostgreSQL**: Native support for Neon.tech.
+
+### 🛠 Quick Event Creation (JSON)
+You can create an event in a single command by passing a JSON-like body:
+```text
+/event {name: "Monday Match", limit: 14, datetime: "tomorrow 18:00", location: "Stadium X", free: false}
+```
+Supported keys: `name`, `limit`, `datetime`, `location`, `free`, `blik`.
+
 
 ## 📁 Project Structure
 - `sport_event_bot/`: Core bot package.
