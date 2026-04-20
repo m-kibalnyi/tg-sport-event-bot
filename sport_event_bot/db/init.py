@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 try:
-    from sport_event_bot.db.base import reconnect, _exec, _exec_many, PLATFORM
+    from sport_event_bot.db.base import PLATFORM, _exec, _exec_many, reconnect
 except (ImportError, ValueError):
-    from .base import reconnect, _exec, _exec_many, PLATFORM
+    from .base import PLATFORM, _exec, _exec_many, reconnect
+
 
 def create_table_users():
     conn = reconnect()
-    _exec(conn, '''
+    _exec(
+        conn,
+        """
         CREATE TABLE IF NOT EXISTS Users (
             user_id BIGINT NOT NULL,
             platform VARCHAR(16) NOT NULL DEFAULT 'telegram',
@@ -20,17 +23,24 @@ def create_table_users():
             extra      TEXT,
             PRIMARY KEY (user_id, platform)
         );
-    ''')
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'lang') THEN ALTER TABLE Users ADD COLUMN lang VARCHAR(8) DEFAULT 'ru'; END IF; END $$;")
-    
-    rows = [(uid, PLATFORM, 'Legioneer') for uid in range(10, 1010)]
+    """,
+    )
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'lang') THEN ALTER TABLE Users ADD COLUMN lang VARCHAR(8) DEFAULT 'ru'; END IF; END $$;",
+    )
+
+    rows = [(uid, PLATFORM, "Legioneer") for uid in range(10, 1010)]
     query = "INSERT INTO Users (user_id, platform, first_name) VALUES %s ON CONFLICT (user_id, platform) DO NOTHING"
     _exec_many(conn, query, rows)
     conn.close()
 
+
 def create_table_chats():
     conn = reconnect()
-    _exec(conn, '''
+    _exec(
+        conn,
+        """
         CREATE TABLE IF NOT EXISTS Chats (
             chat_id BIGINT NOT NULL,
             platform VARCHAR(16) NOT NULL DEFAULT 'telegram',
@@ -46,14 +56,24 @@ def create_table_chats():
             lists_thread_id BIGINT DEFAULT NULL,
             PRIMARY KEY (chat_id, platform)
         );
-    ''')
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'chats'::regclass AND attname = 'log_thread_id') THEN ALTER TABLE Chats ADD COLUMN log_thread_id BIGINT DEFAULT NULL; END IF; END $$;")
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'chats'::regclass AND attname = 'lists_thread_id') THEN ALTER TABLE Chats ADD COLUMN lists_thread_id BIGINT DEFAULT NULL; END IF; END $$;")
+    """,
+    )
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'chats'::regclass AND attname = 'log_thread_id') THEN ALTER TABLE Chats ADD COLUMN log_thread_id BIGINT DEFAULT NULL; END IF; END $$;",
+    )
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'chats'::regclass AND attname = 'lists_thread_id') THEN ALTER TABLE Chats ADD COLUMN lists_thread_id BIGINT DEFAULT NULL; END IF; END $$;",
+    )
     conn.close()
+
 
 def create_table_events():
     conn = reconnect()
-    _exec(conn, '''
+    _exec(
+        conn,
+        """
         CREATE TABLE IF NOT EXISTS Events (
             event_id SERIAL PRIMARY KEY,
             chat_id BIGINT,
@@ -74,18 +94,37 @@ def create_table_events():
               FOREIGN KEY (chat_id, platform) REFERENCES Chats(chat_id, platform)
               ON DELETE SET NULL ON UPDATE CASCADE
         );
-    ''')
-    _exec(conn, 'CREATE INDEX IF NOT EXISTS idx_events_chat_platform ON Events (chat_id, platform);')
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='blik_phone') THEN ALTER TABLE Events ADD COLUMN blik_phone VARCHAR(32) DEFAULT NULL; END IF; END $$;")
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='creator_id') THEN ALTER TABLE Events ADD COLUMN creator_id BIGINT DEFAULT NULL; END IF; END $$;")
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='location') THEN ALTER TABLE Events ADD COLUMN location TEXT DEFAULT NULL; END IF; END $$;")
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='latest_bot_message_id') THEN ALTER TABLE Events ADD COLUMN latest_bot_message_id VARCHAR(64) DEFAULT ''; END IF; END $$;")
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='latest_bot_message_text') THEN ALTER TABLE Events ADD COLUMN latest_bot_message_text TEXT; END IF; END $$;")
+    """,
+    )
+    _exec(conn, "CREATE INDEX IF NOT EXISTS idx_events_chat_platform ON Events (chat_id, platform);")
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='blik_phone') THEN ALTER TABLE Events ADD COLUMN blik_phone VARCHAR(32) DEFAULT NULL; END IF; END $$;",
+    )
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='creator_id') THEN ALTER TABLE Events ADD COLUMN creator_id BIGINT DEFAULT NULL; END IF; END $$;",
+    )
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='location') THEN ALTER TABLE Events ADD COLUMN location TEXT DEFAULT NULL; END IF; END $$;",
+    )
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='latest_bot_message_id') THEN ALTER TABLE Events ADD COLUMN latest_bot_message_id VARCHAR(64) DEFAULT ''; END IF; END $$;",
+    )
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='latest_bot_message_text') THEN ALTER TABLE Events ADD COLUMN latest_bot_message_text TEXT; END IF; END $$;",
+    )
     conn.close()
+
 
 def create_table_participants():
     conn = reconnect()
-    _exec(conn, '''
+    _exec(
+        conn,
+        """
         CREATE TABLE IF NOT EXISTS Participants (
             event_id BIGINT NOT NULL,
             user_id BIGINT,
@@ -98,13 +137,17 @@ def create_table_participants():
               FOREIGN KEY (event_id) REFERENCES Events(event_id)
               ON DELETE CASCADE ON UPDATE CASCADE
         );
-    ''')
-    _exec(conn, 'CREATE INDEX IF NOT EXISTS idx_participants_event ON Participants (event_id);')
+    """,
+    )
+    _exec(conn, "CREATE INDEX IF NOT EXISTS idx_participants_event ON Participants (event_id);")
     conn.close()
+
 
 def create_table_thinking():
     conn = reconnect()
-    _exec(conn, '''
+    _exec(
+        conn,
+        """
         CREATE TABLE IF NOT EXISTS Thinking (
             event_id BIGINT NOT NULL,
             user_id BIGINT,
@@ -114,13 +157,17 @@ def create_table_thinking():
               FOREIGN KEY (event_id) REFERENCES Events(event_id)
               ON DELETE CASCADE ON UPDATE CASCADE
         );
-    ''')
-    _exec(conn, 'CREATE INDEX IF NOT EXISTS idx_thinking_event ON Thinking (event_id);')
+    """,
+    )
+    _exec(conn, "CREATE INDEX IF NOT EXISTS idx_thinking_event ON Thinking (event_id);")
     conn.close()
+
 
 def create_table_revoked():
     conn = reconnect()
-    _exec(conn, '''
+    _exec(
+        conn,
+        """
         CREATE TABLE IF NOT EXISTS Revoked (
             event_id BIGINT NOT NULL,
             user_id BIGINT,
@@ -130,13 +177,17 @@ def create_table_revoked():
               FOREIGN KEY (event_id) REFERENCES Events(event_id)
               ON DELETE CASCADE ON UPDATE CASCADE
         );
-    ''')
-    _exec(conn, 'CREATE INDEX IF NOT EXISTS idx_revoked_event ON Revoked (event_id);')
+    """,
+    )
+    _exec(conn, "CREATE INDEX IF NOT EXISTS idx_revoked_event ON Revoked (event_id);")
     conn.close()
+
 
 def create_table_event_logs():
     conn = reconnect()
-    _exec(conn, '''
+    _exec(
+        conn,
+        """
         CREATE TABLE IF NOT EXISTS EventLogs (
             log_id SERIAL PRIMARY KEY,
             event_id BIGINT NOT NULL,
@@ -146,13 +197,17 @@ def create_table_event_logs():
               FOREIGN KEY (event_id) REFERENCES Events(event_id)
               ON DELETE CASCADE ON UPDATE CASCADE
         );
-    ''')
-    _exec(conn, 'CREATE INDEX IF NOT EXISTS idx_event_logs_event ON EventLogs (event_id);')
+    """,
+    )
+    _exec(conn, "CREATE INDEX IF NOT EXISTS idx_event_logs_event ON EventLogs (event_id);")
     conn.close()
+
 
 def create_table_chat_penalties():
     conn = reconnect()
-    _exec(conn, '''
+    _exec(
+        conn,
+        """
         CREATE TABLE IF NOT EXISTS Penalties (
             chat_id BIGINT,
             platform VARCHAR(16) NOT NULL DEFAULT 'telegram',
@@ -170,11 +225,16 @@ def create_table_chat_penalties():
               FOREIGN KEY (operator_id, platform) REFERENCES Users(user_id, platform)
               ON DELETE CASCADE ON UPDATE CASCADE
         );
-    ''')
-    _exec(conn, 'CREATE INDEX IF NOT EXISTS idx_pen_chat_platform ON Penalties (chat_id, platform);')
-    _exec(conn, 'CREATE INDEX IF NOT EXISTS idx_pen_user_platform ON Penalties (user_id, platform);')
-    _exec(conn, "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'penalties'::regclass AND attname = 'expires_at') THEN ALTER TABLE Penalties ADD COLUMN expires_at TIMESTAMP; END IF; END $$;")
+    """,
+    )
+    _exec(conn, "CREATE INDEX IF NOT EXISTS idx_pen_chat_platform ON Penalties (chat_id, platform);")
+    _exec(conn, "CREATE INDEX IF NOT EXISTS idx_pen_user_platform ON Penalties (user_id, platform);")
+    _exec(
+        conn,
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'penalties'::regclass AND attname = 'expires_at') THEN ALTER TABLE Penalties ADD COLUMN expires_at TIMESTAMP; END IF; END $$;",
+    )
     conn.close()
+
 
 def init_database():
     """Initialize all tables"""

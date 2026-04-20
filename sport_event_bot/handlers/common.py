@@ -1,28 +1,32 @@
 # -*- coding: utf-8 -*-
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from loguru import logger
-import sport_event_bot.db_postgres as db
-from sport_event_bot.utils.localization import make_translatable_user_id_context, TRANSLATIONS
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+from sport_event_bot.utils.localization import make_translatable_user_id_context
+
 
 @logger.catch
 @make_translatable_user_id_context
 async def set_language(update, context):
-    if not update.message: return
-    translate = context.user_data['translate']
+    if not update.message:
+        return
+    translate = context.user_data["translate"]
     keyboard = [
-        [InlineKeyboardButton("Русский 🇷🇺", callback_data='SET_LANG_ru')],
-        [InlineKeyboardButton("Українська 🇺🇦", callback_data='SET_LANG_uk')],
-        [InlineKeyboardButton("Polski 🇵🇱", callback_data='SET_LANG_pl')],
-        [InlineKeyboardButton("English 🇬🇧", callback_data='SET_LANG_en')],
+        [InlineKeyboardButton("Русский 🇷🇺", callback_data="SET_LANG_ru")],
+        [InlineKeyboardButton("Українська 🇺🇦", callback_data="SET_LANG_uk")],
+        [InlineKeyboardButton("Polski 🇵🇱", callback_data="SET_LANG_pl")],
+        [InlineKeyboardButton("English 🇬🇧", callback_data="SET_LANG_en")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(translate("Choose your language:"), reply_markup=reply_markup)
 
+
 @logger.catch
 @make_translatable_user_id_context
 async def show_help(update, context):
-    if not update.message: return
-    translate = context.user_data['translate']
+    if not update.message:
+        return
+    translate = context.user_data["translate"]
     help_text = translate("""
 Available BOT commands:
 
@@ -46,7 +50,8 @@ Available BOT commands:
 """)
     await update.message.reply_text(help_text)
 
+
 @make_translatable_user_id_context
 async def start(update, context):
-    translate = context.user_data['translate']
+    translate = context.user_data["translate"]
     await update.message.reply_text(translate("Welcome! Use /help to see available commands."))
