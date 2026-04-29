@@ -30,10 +30,8 @@ def create_table_users():
         "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'lang') THEN ALTER TABLE Users ADD COLUMN lang VARCHAR(8) DEFAULT 'ru'; END IF; END $$;",
     )
 
-    rows = [(uid, PLATFORM, "Legioneer") for uid in range(10, 1010)]
-    query = "INSERT INTO Users (user_id, platform, first_name) VALUES %s ON CONFLICT (user_id, platform) DO NOTHING"
-    _exec_many(conn, query, rows)
     conn.close()
+
 
 
 def create_table_chats():

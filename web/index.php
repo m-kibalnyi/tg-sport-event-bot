@@ -45,18 +45,55 @@ try {
     die('Database connection failed: ' . $e->getMessage());
 }
 
-// Fetch events with participant counts
-$stmt = $pdo->query("
-    SELECT e.*, 
-           (SELECT COUNT(*) FROM Participants p WHERE p.event_id = e.event_id) as participant_count,
-           (SELECT COUNT(*) FROM Participants p WHERE p.event_id = e.event_id AND p.paid = TRUE) as paid_count
-    FROM Events e
-    ORDER BY e.event_id DESC
-    LIMIT 50
-");
-$events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Cache settings
+$cache_file = '/tmp/sport_event_bot_cache.json';
+$cache_time = 60; // seconds
+
+$events = [];
+$from_cache = false;
+
+if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
+    $events = json_decode(file_get_contents($cache_file), true);
+    if ($events !== null) {
+        $from_cache = true;
+    }
+}
+
+if (!$from_cache) {
+    // Fetch events with participant counts using optimized JOIN
+    $query = "
+        SELECT e.*, 
+               COALESCE(p_stats.participant_count, 0) as participant_count,
+               COALESCE(p_stats.paid_count, 0) as paid_count
+        FROM (
+            SELECT * FROM Events ORDER BY event_id DESC LIMIT 50
+        ) e
+        LEFT JOIN (
+            SELECT event_id, 
+                   COUNT(*) as participant_count,
+                   SUM(CASE WHEN paid = TRUE THEN 1 ELSE 0 END) as paid_count
+            FROM Participants
+            WHERE event_id IN (SELECT event_id FROM Events ORDER BY event_id DESC LIMIT 50)
+            GROUP BY event_id
+        ) p_stats ON e.event_id = p_stats.event_id
+        ORDER BY e.event_id DESC
+    ";
+    
+    try {
+        $stmt = $pdo->query($query);
+        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Save to cache
+        file_put_contents($cache_file, json_encode($events));
+    } catch (PDOException $e) {
+        // Fallback or error handling
+        if (empty($events)) {
+            die('Database error: ' . $e->getMessage());
+        }
+    }
+}
 
 ?>
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
