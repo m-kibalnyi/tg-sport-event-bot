@@ -9,7 +9,7 @@ from sport_event_bot.utils.helpers import parse_datetime
 LOCATION_HIDE_MARKER = "null"
 
 
-def create_event_full_text(chat_id: int, translate) -> str:
+def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
     """Renders the entire event message text."""
     try:
         event_name = db.get_event_text(chat_id)
@@ -39,7 +39,7 @@ def create_event_full_text(chat_id: int, translate) -> str:
         dt = None
         if dt_str:
             try:
-                dt = parse_datetime(dt_str, translate)
+                dt = parse_datetime(dt_str, lang)
             except Exception as e:
                 logger.error(f"Failed to parse datetime '{dt_str}': {e}")
 

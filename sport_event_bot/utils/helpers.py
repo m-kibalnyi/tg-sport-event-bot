@@ -6,23 +6,61 @@ from typing import Callable, Optional
 
 import parsedatetime
 from loguru import logger
-from recurrent.event_parser import RecurringEvent
 
 
-def parse_datetime(str_datetime_in_free_form: str, translate: Callable[[str], str]) -> Optional[datetime.datetime]:
+def parse_datetime(str_datetime_in_free_form: str, lang: str = "ru") -> Optional[datetime.datetime]:
+    logger.info(f"parse_datetime: input='{str_datetime_in_free_form}', lang='{lang}'")
+    
+    # Try ISO/Common formats first
+    coerced = _coerce_to_datetime(str_datetime_in_free_form)
+    if coerced:
+        logger.info(f"parse_datetime: coerced to {coerced}")
+        return coerced
+
     try:
-        locale_id = "en_US"
+        # Map bot lang to parsedatetime locale
+        # Handle cases where a translation function is passed instead of a lang string
+        if not isinstance(lang, str):
+            locale_id = "en_US"
+        else:
+            locale_map = {
+                "ru": "ru_RU",
+                "uk": "uk_UA",
+                "en": "en_US",
+                "pl": "pl_PL"
+            }
+            locale_id = locale_map.get(lang, "en_US")
+        
         consts = parsedatetime.Constants(localeID=locale_id, usePyICU=False)
         consts.use24 = True
-        r_event = RecurringEvent(parse_constants=consts)
-        found_date = r_event.parse(str_datetime_in_free_form)
-        if not found_date:
+        cal = parsedatetime.Calendar(constants=consts, version=parsedatetime.VERSION_CONTEXT_STYLE)
+        
+        # parseDT returns (datetime, status)
+        now = datetime.datetime.now()
+        found_date, status = cal.parseDT(str_datetime_in_free_form, now)
+        
+        logger.info(f"parse_datetime: cal.parseDT found: {found_date}, status_type: {type(status)}")
+        
+        # Robust status check
+        is_success = False
+        if isinstance(status, int):
+            is_success = (status > 0)
+        elif hasattr(status, 'accuracy'):
+            is_success = (status.accuracy > 0)
+        else:
+            is_success = bool(status)
+
+        if not is_success:
             return None
-        if isinstance(found_date, str):
+            
+        delta = found_date - now
+        logger.info(f"parse_datetime: delta.days={delta.days}")
+        
+        # Allow dates from yesterday (for late night registrations) up to 120 days ahead
+        if delta.days < -1 or delta.days > 120:
+            logger.info("parse_datetime: date out of range, returning None")
             return None
-        delta = found_date - datetime.datetime.now()
-        if delta.days < -1 or delta.days > 90:
-            return None
+            
         return found_date
     except Exception as e:
         logger.warning(f"Error parsing datetime '{str_datetime_in_free_form}': {e}")

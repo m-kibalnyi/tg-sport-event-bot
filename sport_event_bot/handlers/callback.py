@@ -9,7 +9,7 @@ import sport_event_bot.db_postgres as db
 import sport_event_bot.telegraph as tph
 from sport_event_bot.handlers.event_mgmt import show_info
 from sport_event_bot.handlers.player import legioneer_added_message, legioneer_removed_message
-from sport_event_bot.ui.markups import build_message_markup
+from sport_event_bot.ui.markups import build_message_markup, build_confirmation_markup
 from sport_event_bot.ui.render import create_event_full_text
 from sport_event_bot.utils.localization import TRANSLATIONS, make_translatable_user_id_context
 from sport_event_bot.utils.auth import is_user_admin
@@ -34,7 +34,11 @@ async def button(update, context):
         return
 
     # Admin-only actions
-    if data.startswith("SET_LIMIT_") or data in ["SHUFFLE", "RESHUFFLE", "INC_TEAMS", "DEC_TEAMS"] or data.startswith("PENALTY_"):
+    if (data.startswith("SET_LIMIT_") or 
+        data in ["SHUFFLE", "RESHUFFLE", "INC_TEAMS", "DEC_TEAMS", "DELETE_EVENT", "CONFIRM_DELETE_EVENT", "CANCEL_DELETE_EVENT"] or 
+        data.startswith("PENALTY_") or 
+        data.startswith("PEN_SEL_") or 
+        data.startswith("PEN_DUR_")):
         if not await is_user_admin(update, context):
             await query.answer(translate("Access denied: only admins can use this command."), show_alert=True)
             return
@@ -117,30 +121,59 @@ async def button(update, context):
         await query.answer(context.user_data["translate"]("Language updated"))
         await show_info(update, context)
         return
-    elif data.startswith("PENALTY_"):
+    elif data.startswith("PENALTY_REMOVE_"):
+        uid = int(data.split("_")[-1])
+        db.remove_user_penalties(chat_id, uid)
+        name = db.compose_full_name(uid)
+        msg = translate("Penalty removed for %(name)s.") % {"name": name}
+        await query.answer(msg)
+        await query.edit_message_text(msg)
+        return
+    elif data.startswith("PEN_SEL_"):
+        uid = int(data.split("_")[-1])
+        name = db.compose_full_name(uid)
+        from sport_event_bot.ui.markups import build_penalty_duration_markup
+        await query.edit_message_text(
+            translate("Select penalty duration for %(name)s:") % {"name": name},
+            reply_markup=build_penalty_duration_markup(uid, translate)
+        )
+        return
+    elif data.startswith("PEN_DUR_"):
         parts = data.split("_")
-        if parts[1] == "REMOVE":
-            uid = int(parts[2])
-            db.remove_user_penalties(chat_id, uid)
-            name = db.compose_full_name(uid)
-            msg = translate("Penalty removed for %(name)s.") % {"name": name}
-            await query.answer(msg)
-            await query.edit_message_text(msg)
-            return
-        else:
-            uid = int(parts[1])
-            days = int(parts[2])
-            db.penalty_for_user_in_chat(chat_id, uid, user_id, days)
-            name = db.compose_full_name(uid)
-            msg = translate("Penalty applied for %(name)s for %(days)d days.") % {"name": name, "days": days}
-            await query.answer(msg)
-            await query.edit_message_text(msg)
-            return
+        uid = int(parts[2])
+        days = int(parts[3])
+        db.penalty_for_user_in_chat(chat_id, uid, user_id, days)
+        name = db.compose_full_name(uid)
+        msg = translate("Penalty applied for %(name)s for %(days)d days.") % {"name": name, "days": days}
+        await query.answer(msg)
+        await query.edit_message_text(msg)
+        return
+    elif data == "DELETE_EVENT":
+        # Show confirmation buttons
+        await query.edit_message_text(
+            text=translate("Are you sure you want to delete this event? This action cannot be undone."),
+            reply_markup=build_confirmation_markup(translate),
+            parse_mode=ParseMode.HTML
+        )
+        return
+    elif data == "CONFIRM_DELETE_EVENT":
+        db.close_all_open_events_for_chat(chat_id)
+        await query.answer(translate("All open events for this chat were closed."))
+        # Continue to refresh logic which will show "No active event"
+    elif data == "CANCEL_DELETE_EVENT":
+        # Just continue to refresh logic which will show the main view
+        pass
 
-    full_text = create_event_full_text(chat_id, translate)
-    is_admin = await is_user_admin(update, context)
-    blik_phone = db.get_event_blik_phone(chat_id)
-    kb = build_message_markup(translate, db.get_event_extra1(chat_id), is_admin=is_admin, blik_phone=blik_phone)
+    lang = context.user_data.get("lang", "ru")
+    event_name = db.get_event_text(chat_id)
+    if not event_name:
+        full_text = translate("No active event.")
+        kb = None
+    else:
+        full_text = create_event_full_text(chat_id, translate, lang=lang)
+        is_admin = await is_user_admin(update, context)
+        blik_phone = db.get_event_blik_phone(chat_id)
+        kb = build_message_markup(translate, db.get_event_extra1(chat_id), is_admin=is_admin, blik_phone=blik_phone)
     try:
         await query.edit_message_text(
             text=full_text, reply_markup=kb, parse_mode=ParseMode.HTML, disable_web_page_preview=True
@@ -149,7 +182,9 @@ async def button(update, context):
     except Exception as e:
         if "message is not modified" not in str(e).lower():
             logger.exception(e)
-    await query.answer()
+    
+    if data != "CONFIRM_DELETE_EVENT":
+        await query.answer()
 
 
 async def handle_shuffle_callback(update, context, data):

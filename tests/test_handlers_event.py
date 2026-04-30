@@ -14,9 +14,11 @@ from sport_event_bot.handlers.event_conv import (
 
 @pytest.mark.asyncio
 @patch("sport_event_bot.handlers.event_conv.db")
+@patch("sport_event_bot.handlers.event_conv.is_user_admin")
 @patch("sport_event_bot.handlers.event_conv.parse_cmd_arg")
-async def test_create_new_event_start(mock_parse_arg, mock_db, mock_update, mock_context, translate):
+async def test_create_new_event_start(mock_parse_arg, mock_admin, mock_db, mock_update, mock_context, translate):
     # Setup
+    mock_admin.return_value = True
     mock_context.user_data["translate"] = translate
     mock_db.get_event_text.return_value = None
     mock_parse_arg.return_value = ""
@@ -34,8 +36,10 @@ async def test_create_new_event_start(mock_parse_arg, mock_db, mock_update, mock
 
 @pytest.mark.asyncio
 @patch("sport_event_bot.handlers.event_conv.db")
-async def test_create_new_event_already_exists(mock_db, mock_update, mock_context, translate):
+@patch("sport_event_bot.handlers.event_conv.is_user_admin")
+async def test_create_new_event_already_exists(mock_admin, mock_db, mock_update, mock_context, translate):
     # Setup
+    mock_admin.return_value = True
     mock_context.user_data["translate"] = translate
     mock_db.get_event_text.return_value = "Existing Event"
 
@@ -70,13 +74,15 @@ async def test_event_name_handler(mock_update, mock_context, translate):
 
 @pytest.mark.asyncio
 @patch("sport_event_bot.handlers.event_conv.db")
+@patch("sport_event_bot.handlers.event_conv.is_user_admin")
 @patch("sport_event_bot.handlers.event_conv.create_event_full_text")
 @patch("sport_event_bot.handlers.event_conv.build_message_markup")
 @patch("sport_event_bot.handlers.event_conv.log_event", new_callable=AsyncMock)
 async def test_finalize_event_creation(
-    mock_log, mock_markup, mock_render, mock_db, mock_update, mock_context, translate
+    mock_log, mock_markup, mock_render, mock_admin, mock_db, mock_update, mock_context, translate
 ):
     # Setup
+    mock_admin.return_value = True
     mock_context.user_data["translate"] = translate
     mock_context.user_data["new_event_data"] = {"name": "Test Event", "limit": 16, "datetime": "2024-12-01 12:00"}
 

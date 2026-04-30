@@ -28,6 +28,7 @@ def make_translatable_user_id_context(func):
         # Try user language, then chat language, then default
         lang = db.get_user_lang(user_id) or db.get_chat_lang(update.effective_chat.id) or "ru"
 
+        context.user_data["lang"] = lang
         context.user_data["translate"] = TRANSLATIONS.get(lang, lambda t: t)
         return await func(update, context)
 

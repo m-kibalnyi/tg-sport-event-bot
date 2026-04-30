@@ -144,18 +144,27 @@ async def penalty_player(update, context):
         await update.message.reply_text(translate("Access denied: only admins can use this command."))
         return
 
-    user_id, days, result = await _identify_user(update, context, translate, "PENALTY")
+    user_id, days, result = await _identify_user(update, context, translate, "PEN_SEL")
     
     if user_id:
-        days = days or 14
-        try:
-            db.penalty_for_user_in_chat(chat_id, user_id, update.effective_user.id, days)
-            await update.message.reply_text(translate("Penalty applied for %(days)d days.") % {"days": days})
-        except Exception as e:
-            logger.exception(e)
-            await update.message.reply_text(translate("Error applying penalty."))
+        if days is not None:
+            # Honor the days provided in command
+            try:
+                db.penalty_for_user_in_chat(chat_id, user_id, update.effective_user.id, days)
+                await update.message.reply_text(translate("Penalty applied for %(days)d days.") % {"days": days})
+            except Exception as e:
+                logger.exception(e)
+                await update.message.reply_text(translate("Error applying penalty."))
+        else:
+            # User identified but no duration specified, ask for duration
+            name = db.compose_full_name(user_id)
+            from sport_event_bot.ui.markups import build_penalty_duration_markup
+            await update.message.reply_text(
+                translate("Select penalty duration for %(name)s:") % {"name": name},
+                reply_markup=build_penalty_duration_markup(user_id, translate)
+            )
     elif result is False:
-        await update.message.reply_text(translate("Usage: /penalty [USER] [DAYS] or reply to a message."))
+        await update.message.reply_text(translate("Usage: /penalty [USER] or reply to a message."))
     elif result is True:
         await update.message.reply_text(translate("No participants found to penalty."))
     elif result:

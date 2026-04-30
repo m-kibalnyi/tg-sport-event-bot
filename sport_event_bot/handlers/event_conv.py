@@ -52,9 +52,12 @@ async def create_new_event(update, context):
 
 
 async def event_ask_step(update, context, step):
+    logger.info(f"event_ask_step: step={step}")
     translate = context.user_data["translate"]
     data = context.user_data["new_event_data"]
     query = update.callback_query
+
+    thread_id = update.effective_message.message_thread_id if update.effective_message else None
 
     if step == EVENT_SET_NAME:
         val = data.get("name")
@@ -71,10 +74,9 @@ async def event_ask_step(update, context, step):
             if query:
                 await query.edit_message_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
             else:
-                await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
+                await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML, message_thread_id=thread_id)
             return EVENT_SET_NAME
         else:
-            thread_id = update.effective_message.message_thread_id if update.effective_message else None
             await context.bot.send_message(
                 update.effective_chat.id,
                 translate("What is the name of the event?"),
@@ -98,7 +100,7 @@ async def event_ask_step(update, context, step):
             if query:
                 await query.edit_message_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
             else:
-                await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
+                await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML, message_thread_id=thread_id)
             return EVENT_SET_LIMIT
         else:
             kb = InlineKeyboardMarkup(
@@ -116,7 +118,7 @@ async def event_ask_step(update, context, step):
             if query:
                 await query.edit_message_text(txt, reply_markup=kb)
             else:
-                await update.message.reply_text(txt, reply_markup=kb)
+                await update.message.reply_text(txt, reply_markup=kb, message_thread_id=thread_id)
             return EVENT_SET_LIMIT
 
     elif step == EVENT_SET_DATETIME:
@@ -136,10 +138,9 @@ async def event_ask_step(update, context, step):
             if query:
                 await query.edit_message_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
             else:
-                await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
+                await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML, message_thread_id=thread_id)
             return EVENT_SET_DATETIME
         else:
-            thread_id = update.effective_message.message_thread_id if update.effective_message else None
             await context.bot.send_message(
                 update.effective_chat.id,
                 f"{translate('Suggesting default time')}: <b>{default_str}</b>.\n"
@@ -174,7 +175,7 @@ async def event_ask_step(update, context, step):
             if query:
                 await query.edit_message_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
             else:
-                await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML)
+                await update.message.reply_text(txt, reply_markup=kb, parse_mode=ParseMode.HTML, message_thread_id=thread_id)
             return EVENT_SET_PAYMENT
         else:
             kb = InlineKeyboardMarkup(
@@ -187,7 +188,7 @@ async def event_ask_step(update, context, step):
             if query:
                 await query.edit_message_text(txt, reply_markup=kb)
             else:
-                await update.message.reply_text(txt, reply_markup=kb)
+                await update.message.reply_text(txt, reply_markup=kb, message_thread_id=thread_id)
             return EVENT_SET_PAYMENT
 
     elif step == EVENT_SET_BLIK:
@@ -279,14 +280,22 @@ async def event_callback(update, context):
 @logger.catch
 @make_translatable_user_id_context
 async def event_datetime_handler(update, context):
-    dt = parse_datetime(update.message.text, context.user_data["translate"])
+    logger.info(f"event_datetime_handler: received message: {update.message.text}")
+    lang = context.user_data.get("lang", "ru")
+    dt = parse_datetime(update.message.text, lang=lang)
     if dt:
+        logger.info(f"event_datetime_handler: parsed datetime: {dt}")
         context.user_data["new_event_data"]["datetime"] = dt.strftime("%Y-%m-%d %H:%M")
-        return await event_ask_step(update, context, EVENT_SET_PAYMENT)
+        res = await event_ask_step(update, context, EVENT_SET_PAYMENT)
+        logger.info(f"event_datetime_handler: event_ask_step returned: {res}")
+        return res
     else:
+        logger.info("event_datetime_handler: failed to parse datetime")
+        thread_id = update.effective_message.message_thread_id if update.effective_message else None
         await update.message.reply_text(
             context.user_data["translate"]("Error: Could not parse date format."),
             reply_markup=ForceReply(selective=True),
+            message_thread_id=thread_id,
         )
         return EVENT_SET_DATETIME
 
@@ -309,7 +318,12 @@ async def finalize_event_creation(update, context):
     chat_id = update.effective_chat.id
     name = data.get("name", "Sport Event")
     limit = data.get("limit", 14)
-    dt = parse_datetime(data.get("datetime"), translate) if data.get("datetime") else get_default_datetime()
+    lang = context.user_data.get("lang", "ru")
+    dt = parse_datetime(data.get("datetime"), lang) if data.get("datetime") else get_default_datetime()
+
+    if dt is None:
+        await update.message.reply_text(translate("Error: Could not parse date format."))
+        return ConversationHandler.END
 
     lists_thread_id = db.get_lists_thread_id(chat_id)
     if lists_thread_id is None and update.effective_message and update.effective_message.is_topic_message:

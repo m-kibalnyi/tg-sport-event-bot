@@ -17,7 +17,7 @@ def build_message_markup(
     if is_admin:
         rows.append(
             [
-                InlineKeyboardButton("🧒 " + translate_func("Close collection"), callback_data="CLOSE_EVENT"),
+                InlineKeyboardButton("🗑️ " + translate_func("Delete event"), callback_data="DELETE_EVENT"),
                 InlineKeyboardButton(
                     "🔀 " + (translate_func("Shuffle (reshuffle)") if extra1 else translate_func("Shuffle (перемешать)")),
                     callback_data="RESHUFFLE" if extra1 else "SHUFFLE",
@@ -71,6 +71,18 @@ def build_message_markup(
     return InlineKeyboardMarkup(rows)
 
 
+def build_confirmation_markup(translate_func: Callable[[str], str]) -> InlineKeyboardMarkup:
+    """Create confirmation buttons for event deletion"""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ " + translate_func("Yes, delete"), callback_data="CONFIRM_DELETE_EVENT"),
+                InlineKeyboardButton("❌ " + translate_func("Cancel"), callback_data="CANCEL_DELETE_EVENT"),
+            ]
+        ]
+    )
+
+
 def _serialize_inline_kb(kb: InlineKeyboardMarkup) -> str:
     if not kb or not kb.inline_keyboard:
         return ""
@@ -98,3 +110,22 @@ def build_penalty_selection_markup(players: list, translate_func: Callable[[str]
 def build_penalty_markup(players: list, translate_func: Callable[[str], str], days: int = 14):
     """Backward compatibility for penalty markup"""
     return build_penalty_selection_markup(players, translate_func, "PENALTY", str(days))
+
+def build_penalty_duration_markup(uid: int, translate_func: Callable[[str], str]) -> InlineKeyboardMarkup:
+    """Create buttons for selecting penalty duration"""
+    options = [
+        (1, translate_func("1 day")),
+        (3, translate_func("3 days")),
+        (7, translate_func("7 days")),
+        (14, translate_func("14 days")),
+        (30, translate_func("30 days")),
+    ]
+    rows = []
+    # 2 buttons per row
+    for i in range(0, len(options), 2):
+        row = []
+        for days, label in options[i:i+2]:
+            row.append(InlineKeyboardButton(label, callback_data=f"PEN_DUR_{uid}_{days}"))
+        rows.append(row)
+    
+    return InlineKeyboardMarkup(rows)
