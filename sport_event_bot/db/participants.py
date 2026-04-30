@@ -77,7 +77,7 @@ def apply_for_participation_in_the_event(chat_id: int, user_id: int):
         """
         INSERT INTO Participants (event_id, user_id, operation_datetime, paid)
         VALUES (%s, %s, %s, FALSE)
-        ON CONFLICT (event_id, user_id) DO UPDATE SET operation_datetime = EXCLUDED.operation_datetime;
+        ON CONFLICT (event_id, user_id) DO NOTHING;
     """,
         (event_id, user_id, dtm),
     )
@@ -104,7 +104,7 @@ def revoke_application_for_the_event(chat_id: int, user_id: int):
         """
         INSERT INTO Revoked (event_id, user_id, operation_datetime)
         VALUES (%s, %s, %s)
-        ON CONFLICT (event_id, user_id) DO UPDATE SET operation_datetime = EXCLUDED.operation_datetime;
+        ON CONFLICT (event_id, user_id) DO NOTHING;
     """,
         (event_id, user_id, dtm),
     )
@@ -131,7 +131,7 @@ def apply_for_thinking(chat_id: int, user_id: int):
         """
         INSERT INTO Thinking (event_id, user_id, operation_datetime)
         VALUES (%s, %s, %s)
-        ON CONFLICT (event_id, user_id) DO UPDATE SET operation_datetime = EXCLUDED.operation_datetime;
+        ON CONFLICT (event_id, user_id) DO NOTHING;
     """,
         (event_id, user_id, dtm),
     )
@@ -167,7 +167,7 @@ def apply_for_legioneer(chat_id, invited_by_user_id=None):
         """
         INSERT INTO Participants (event_id, user_id, operation_datetime, paid, invited_by)
         VALUES (%s, %s, %s, FALSE, %s)
-        ON CONFLICT (event_id, user_id) DO UPDATE SET operation_datetime = EXCLUDED.operation_datetime, invited_by = EXCLUDED.invited_by;
+        ON CONFLICT (event_id, user_id) DO NOTHING;
     """,
         (event_id, user_id, dtm, invited_by_user_id),
     )

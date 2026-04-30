@@ -14,6 +14,10 @@ async def add_player(update, context):
         return
     chat_id = update.message.chat_id
     user_id = update.effective_user.id
+    translate = context.user_data["translate"]
+    if db.is_user_penalized(chat_id, user_id):
+        await update.message.reply_text(translate("Access denied: you have an active penalty."))
+        return
     db.add_or_update_user(
         user_id, update.effective_user.first_name, update.effective_user.last_name, update.effective_user.username
     )
@@ -59,7 +63,12 @@ async def add_leg(update, context):
     if not update.message:
         return
     chat_id = update.message.chat_id
-    db.apply_for_legioneer(chat_id, update.effective_user.id)
+    user_id = update.effective_user.id
+    translate = context.user_data["translate"]
+    if db.is_user_penalized(chat_id, user_id):
+        await update.message.reply_text(translate("Access denied: you have an active penalty."))
+        return
+    db.apply_for_legioneer(chat_id, user_id)
     event_id = db.get_event_id_by_chat_id(chat_id)
     if event_id:
         await log_event(

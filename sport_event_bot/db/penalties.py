@@ -84,3 +84,33 @@ def get_user_cancellation_datetime(chat_id: int, user_id: int) -> Optional[datet
     row = cur.fetchone()
     conn.close()
     return row[0] if row else None
+
+
+def is_user_penalized(chat_id: int, user_id: int) -> bool:
+    conn = reconnect()
+    now = datetime.datetime.now()
+    cur = _exec(
+        conn,
+        """
+        SELECT 1 FROM Penalties
+        WHERE chat_id = %s AND user_id = %s AND platform = %s AND (expires_at IS NULL OR expires_at > %s)
+        LIMIT 1;
+    """,
+        (chat_id, user_id, PLATFORM, now),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return True if row else False
+
+
+def remove_user_penalties(chat_id: int, user_id: int):
+    conn = reconnect()
+    _exec(
+        conn,
+        """
+        DELETE FROM Penalties
+        WHERE chat_id = %s AND user_id = %s AND platform = %s;
+    """,
+        (chat_id, user_id, PLATFORM),
+    )
+    conn.close()

@@ -57,3 +57,40 @@ def set_user_lang(user_id: int, lang: str):
     conn = reconnect()
     _exec(conn, "UPDATE Users SET lang = %s WHERE user_id = %s AND platform = %s;", (lang, user_id, PLATFORM))
     conn.close()
+
+
+def find_user_by_username(username: str) -> List[tuple]:
+    if not username:
+        return []
+    username = username.lstrip("@")
+    conn = reconnect()
+    cur = _exec(
+        conn,
+        "SELECT user_id, first_name, last_name, username FROM Users WHERE username ILIKE %s AND platform = %s;",
+        (username, PLATFORM),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+
+def find_users_by_name(query: str) -> List[tuple]:
+    if not query:
+        return []
+    conn = reconnect()
+    cur = _exec(
+        conn,
+        """
+        SELECT user_id, first_name, last_name, username
+        FROM Users
+        WHERE platform = %s AND (
+            first_name ILIKE %s OR
+            last_name ILIKE %s OR
+            COALESCE(first_name, '') || ' ' || COALESCE(last_name, '') ILIKE %s
+        );
+    """,
+        (PLATFORM, f"%{query}%", f"%{query}%", f"%{query}%"),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows

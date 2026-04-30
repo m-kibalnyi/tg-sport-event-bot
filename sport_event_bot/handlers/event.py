@@ -4,6 +4,7 @@ from loguru import logger
 import sport_event_bot.db_postgres as db
 from sport_event_bot.handlers.event_mgmt import show_info
 from sport_event_bot.utils.localization import make_translatable_user_id_context
+from sport_event_bot.utils.auth import is_user_admin
 
 
 @logger.catch
@@ -13,7 +14,11 @@ async def set_event_datetime(update, context):
         return
     chat_id = update.message.chat_id
     translate = context.user_data["translate"]
+    if not await is_user_admin(update, context):
+        await update.message.reply_text(translate("Access denied: only admins can use this command."))
+        return
     if not context.args:
+
         await update.message.reply_text(translate("Usage: /event_datetime DATE TIME"))
         return
     dt_str = " ".join(context.args)
@@ -28,6 +33,9 @@ async def remove_all_chat_events(update, context):
         return
     chat_id = update.message.chat_id
     translate = context.user_data["translate"]
+    if not await is_user_admin(update, context):
+        await update.message.reply_text(translate("Access denied: only admins can use this command."))
+        return
     db.close_all_open_events_for_chat(chat_id)
     await update.message.reply_text(translate("All open events for this chat were closed."))
 
@@ -39,6 +47,9 @@ async def set_blik(update, context):
         return
     chat_id = update.message.chat_id
     translate = context.user_data["translate"]
+    if not await is_user_admin(update, context):
+        await update.message.reply_text(translate("Access denied: only admins can use this command."))
+        return
     if not context.args:
         await update.message.reply_text(translate("Usage: /blik PHONE"))
         return
@@ -54,6 +65,9 @@ async def update_event(update, context):
         return
     chat_id = update.message.chat_id
     translate = context.user_data["translate"]
+    if not await is_user_admin(update, context):
+        await update.message.reply_text(translate("Access denied: only admins can use this command."))
+        return
     if not context.args:
         await update.message.reply_text(translate("Usage: /event_update TEXT"))
         return

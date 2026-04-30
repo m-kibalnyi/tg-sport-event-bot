@@ -12,10 +12,10 @@ async def set_language(update, context):
         return
     translate = context.user_data["translate"]
     keyboard = [
-        [InlineKeyboardButton("Русский 🇷🇺", callback_data="SET_LANG_ru")],
-        [InlineKeyboardButton("Українська 🇺🇦", callback_data="SET_LANG_uk")],
-        [InlineKeyboardButton("Polski 🇵🇱", callback_data="SET_LANG_pl")],
-        [InlineKeyboardButton("English 🇬🇧", callback_data="SET_LANG_en")],
+        [InlineKeyboardButton("Русский", callback_data="SET_LANG_ru")],
+        [InlineKeyboardButton("Українська", callback_data="SET_LANG_uk")],
+        [InlineKeyboardButton("Polski", callback_data="SET_LANG_pl")],
+        [InlineKeyboardButton("English", callback_data="SET_LANG_en")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(translate("Choose your language:"), reply_markup=reply_markup)
@@ -30,7 +30,7 @@ async def show_help(update, context):
     help_text = translate("""
 Available BOT commands:
 
-/event TEXT - Register new event
+/event TEXT - Register new event (or /event {name: "...", limit: 10} for one-shot)
 /event_remove - Remove open event
 /event_update TEXT - Change event description
 /limit XX - Set players limit
@@ -44,9 +44,12 @@ Available BOT commands:
 /payments - Show payment log
 /blik PHONE - Set BLIK phone
 /lang - Change language
-/fix - Fix statistics
-/penalty USERID - Give yellow card
+/fix - Refresh event view
+/penalty USER - Give yellow card
+/penalty_remove USER - Remove yellow card
 /stat - Group statistics
+/set_lists_topic - Set this thread for event lists
+/set_logs_topic - Set this thread for logs
 """)
     await update.message.reply_text(help_text)
 

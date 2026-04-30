@@ -64,11 +64,15 @@ try:
         get_active_penalties,
         get_chat_user_rp,
         get_user_cancellation_datetime,
+        is_user_penalized,
         penalty_for_user_in_chat,
+        remove_user_penalties,
     )
     from sport_event_bot.db.users import (  # noqa: F401
         add_or_update_user,
         compose_full_name,
+        find_user_by_username,
+        find_users_by_name,
         get_all_userids,
         get_user_lang,
         set_user_lang,

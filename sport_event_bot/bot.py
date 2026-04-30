@@ -137,6 +137,7 @@ async def main():
     application.add_handler(CommandHandler("limit", admin.set_players_limit))
     application.add_handler(CommandHandler("stat", admin.show_stat))
     application.add_handler(CommandHandler("penalty", admin.penalty_player))
+    application.add_handler(CommandHandler("penalty_remove", admin.penalty_remove))
     application.add_handler(CommandHandler("payments", admin.show_payments))
     application.add_handler(CommandHandler("fix", admin.fix_ui))
     application.add_handler(CommandHandler("set_lists_topic", admin.set_lists_topic))

@@ -6,6 +6,7 @@ import sport_event_bot.db_postgres as db
 from sport_event_bot.ui.markups import build_message_markup
 from sport_event_bot.ui.render import create_event_full_text
 from sport_event_bot.utils.localization import make_translatable_user_id_context
+from sport_event_bot.utils.auth import is_user_admin
 
 
 @logger.catch
@@ -14,7 +15,11 @@ async def show_info(update, context):
     chat_id = update.effective_chat.id
     translate = context.user_data["translate"]
     full_text = create_event_full_text(chat_id, translate)
-    reply_markup = build_message_markup(translate, db.get_event_extra1(chat_id))
+    is_admin = await is_user_admin(update, context)
+    blik_phone = db.get_event_blik_phone(chat_id)
+    reply_markup = build_message_markup(
+        translate, db.get_event_extra1(chat_id), is_admin=is_admin, blik_phone=blik_phone
+    )
 
     lists_thread_id = db.get_lists_thread_id(chat_id)
     if lists_thread_id is None and update.effective_message and update.effective_message.is_topic_message:

@@ -10,6 +10,7 @@ from sport_event_bot.ui.markups import build_message_markup
 from sport_event_bot.ui.render import create_event_full_text
 from sport_event_bot.utils.helpers import get_default_datetime, parse_datetime, parse_loose_json
 from sport_event_bot.utils.localization import make_translatable_user_id_context
+from sport_event_bot.utils.auth import is_user_admin
 from sport_event_bot.utils.logging_service import log_event
 
 EVENT_SET_NAME, EVENT_SET_LIMIT, EVENT_SET_DATETIME, EVENT_SET_PAYMENT, EVENT_SET_BLIK = range(5)
@@ -22,7 +23,11 @@ async def create_new_event(update, context):
         return ConversationHandler.END
     chat_id = update.message.chat_id
     translate = context.user_data["translate"]
+    if not await is_user_admin(update, context):
+        await update.message.reply_text(translate("Access denied: only admins can use this command."))
+        return ConversationHandler.END
     if db.get_event_text(chat_id):
+
         await update.message.reply_text(translate("Error: An active event already exists."))
         return ConversationHandler.END
     arg = parse_cmd_arg(update, context)
@@ -30,8 +35,12 @@ async def create_new_event(update, context):
     if arg.strip().startswith("{"):
         try:
             context.user_data["new_event_data"] = parse_loose_json(arg)
+            # If JSON contains at least name, we can try one-shot
+            if "name" in context.user_data["new_event_data"]:
+                return await finalize_event_creation(update, context)
             return await event_ask_step(update, context, EVENT_SET_NAME)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed one-shot creation: {e}")
             pass
     if arg:
         context.user_data["new_event_data"]["name"] = arg
@@ -338,7 +347,7 @@ async def finalize_event_creation(update, context):
         chat_id=chat_id,
         message_id=placeholder.message_id,
         text=full_text,
-        reply_markup=build_message_markup(translate, None),
+        reply_markup=build_message_markup(translate, None, blik_phone=data.get("blik")),
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )

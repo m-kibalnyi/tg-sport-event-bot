@@ -12,7 +12,9 @@ from sport_event_bot.handlers.player import legioneer_added_message, legioneer_r
 from sport_event_bot.ui.markups import build_message_markup
 from sport_event_bot.ui.render import create_event_full_text
 from sport_event_bot.utils.localization import TRANSLATIONS, make_translatable_user_id_context
+from sport_event_bot.utils.auth import is_user_admin
 from sport_event_bot.utils.logging_service import log_event
+
 
 
 @logger.catch
@@ -31,7 +33,16 @@ async def button(update, context):
         await query.answer()
         return
 
+    # Admin-only actions
+    if data.startswith("SET_LIMIT_") or data in ["SHUFFLE", "RESHUFFLE", "INC_TEAMS", "DEC_TEAMS"] or data.startswith("PENALTY_"):
+        if not await is_user_admin(update, context):
+            await query.answer(translate("Access denied: only admins can use this command."), show_alert=True)
+            return
+
     if data == "ADD":
+        if db.is_user_penalized(chat_id, user_id):
+            await query.answer(translate("Access denied: you have an active penalty."), show_alert=True)
+            return
         db.apply_for_participation_in_the_event(chat_id, user_id)
         db.set_event_extra1(chat_id, None)
         event_id = db.get_event_id_by_chat_id(chat_id)
@@ -50,6 +61,9 @@ async def button(update, context):
         if event_id:
             await log_event(chat_id, event_id, f"User {query.from_user.first_name} is thinking", context)
     elif data == "ADD_LEGIONEER":
+        if db.is_user_penalized(chat_id, user_id):
+            await query.answer(translate("Access denied: you have an active penalty."), show_alert=True)
+            return
         db.apply_for_legioneer(chat_id, user_id)
         await legioneer_added_message(update, context)
         db.set_event_extra1(chat_id, None)
@@ -103,9 +117,30 @@ async def button(update, context):
         await query.answer(context.user_data["translate"]("Language updated"))
         await show_info(update, context)
         return
+    elif data.startswith("PENALTY_"):
+        parts = data.split("_")
+        if parts[1] == "REMOVE":
+            uid = int(parts[2])
+            db.remove_user_penalties(chat_id, uid)
+            name = db.compose_full_name(uid)
+            msg = translate("Penalty removed for %(name)s.") % {"name": name}
+            await query.answer(msg)
+            await query.edit_message_text(msg)
+            return
+        else:
+            uid = int(parts[1])
+            days = int(parts[2])
+            db.penalty_for_user_in_chat(chat_id, uid, user_id, days)
+            name = db.compose_full_name(uid)
+            msg = translate("Penalty applied for %(name)s for %(days)d days.") % {"name": name, "days": days}
+            await query.answer(msg)
+            await query.edit_message_text(msg)
+            return
 
     full_text = create_event_full_text(chat_id, translate)
-    kb = build_message_markup(translate, db.get_event_extra1(chat_id))
+    is_admin = await is_user_admin(update, context)
+    blik_phone = db.get_event_blik_phone(chat_id)
+    kb = build_message_markup(translate, db.get_event_extra1(chat_id), is_admin=is_admin, blik_phone=blik_phone)
     try:
         await query.edit_message_text(
             text=full_text, reply_markup=kb, parse_mode=ParseMode.HTML, disable_web_page_preview=True

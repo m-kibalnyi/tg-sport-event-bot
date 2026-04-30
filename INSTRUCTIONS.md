@@ -102,24 +102,49 @@ This is slightly more advanced but provides a 24/7 "always-on" bot.
 
 ---
 
-## 3. Bot Features
-- **/event [description]**: Create a new football/sport event (starts a guided conversation).
-- **/event {json_body}**: Pre-fill event details (see Advanced Event Creation below).
-- **/event_remove**: Close the current event.
-- **/info**: Show current event status and player list.
-- **Inline Buttons**: Players can sign up, cancel, or confirm payment directly via buttons.
-- **Localization**: Supports multiple languages based on user settings.
+## 3. Command Reference
+
+### Admin Commands (Group Admins only)
+- **/event [name]** - Start a guided conversation to create a new event.
+- **/event {json}** - **One-shot event creation**: Creates an event immediately using provided details.
+- **/event_remove** - Permanently close and remove the current event.
+- **/event_update [text]** - Change the description of the active event.
+- **/event_datetime [datetime]** - Update the date and time of the active event.
+- **/limit [number]** - Change the player limit.
+- **/blik [phone]** - Set/Update the BLIK phone number for payments.
+- **/penalty [user]** - Give a "Yellow Card" (penalty) to a user. Supports replies, @usernames, or names.
+- **/penalty_remove [user]** - Remove a penalty from a user.
+- **/payments** - Generate a Telegraph link with the current payment log.
+- **/stat** - View group-wide player participation statistics.
+- **/fix** - Refreshes the event message UI (useful if buttons get stuck or message is deleted).
+- **/set_lists_topic** - Configure the current forum thread/topic as the primary place for event lists.
+- **/set_logs_topic** - Configure the current forum thread/topic for administrative logs.
+
+### Player Commands
+- **/info** - Display the current event message with details and participation buttons.
+- **/add** - Join the current event.
+- **/remove** - Leave the current event.
+- **/add_leg** - Add a guest player (legioneer).
+- **/rem_leg** - Remove one of your guest players.
+- **/pay** - Toggle payment confirmation status.
+- **/lang** - Open the language selection menu.
+- **/help** - Show the list of available commands.
+
+---
 
 ## 4. Advanced Event Creation
-You can bypass the step-by-step conversation by providing a JSON-like structure:
+You can bypass the step-by-step conversation by providing a JSON-like structure. If the JSON contains at least a `name`, the event will be created **instantly**.
+
+**Example:**
 ```text
-/event {name: "Futsal Night", limit: 16, datetime: "Friday 20:00", location: "Stadium X", free: false}
+/event {name: "Futsal Night", limit: 16, datetime: "Friday 20:00", location: "Stadium X", free: false, blik: "123456789"}
 ```
+
 **Supported Keys:**
 - `name`: (String) Name of the event.
-- `limit`: (Number) Player capacity.
-- `datetime`: (String) Time/Date (e.g., "tomorrow 18:00").
-- `location`: (String) Custom location name or map link. Use `"none"` to hide.
+- `limit`: (Number) Player capacity (default: 14).
+- `datetime`: (String) Time/Date (e.g., "tomorrow 18:00"). Supports natural language.
+- `location`: (String) Custom location name or map link.
 - `free`: (Boolean) `true` for free, `false` for paid.
 - `blik`: (String) BLIK phone number for payments.
 

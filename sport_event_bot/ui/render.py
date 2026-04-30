@@ -121,6 +121,8 @@ def create_event_full_text(chat_id: int, translate) -> str:
                 logger.warning(f"Failed to parse extra1: {e}")
 
         list_str = ""
+        leg_count = 0 # Sequential legioneer counter
+        
         if teams_data and "teams" in teams_data:
             list_str += f"\n{translate('Shuffled teams')}:\n"
             teams = teams_data["teams"]
@@ -133,7 +135,12 @@ def create_event_full_text(chat_id: int, translate) -> str:
                         uid = uid_data[0] if isinstance(uid_data, (list, tuple)) else uid_data
                         invited_by = uid_data[1] if isinstance(uid_data, (list, tuple)) and len(uid_data) > 1 else None
 
-                        name = html.escape(db.compose_full_name(uid))
+                        if 10 <= uid < 1010:
+                            leg_count += 1
+                            name = f"{translate('Legioner')} {leg_count}"
+                        else:
+                            name = html.escape(db.compose_full_name(uid))
+
                         if invited_by and 10 <= uid < 1010:
                             inviter_name = html.escape(db.compose_full_name(invited_by))
                             name += f" ({translate('from')} {inviter_name})"
@@ -146,7 +153,12 @@ def create_event_full_text(chat_id: int, translate) -> str:
                     uid = uid_data[0] if isinstance(uid_data, (list, tuple)) else uid_data
                     invited_by = uid_data[1] if isinstance(uid_data, (list, tuple)) and len(uid_data) > 1 else None
 
-                    name = html.escape(db.compose_full_name(uid))
+                    if 10 <= uid < 1010:
+                        leg_count += 1
+                        name = f"{translate('Legioner')} {leg_count}"
+                    else:
+                        name = html.escape(db.compose_full_name(uid))
+
                     if invited_by and 10 <= uid < 1010:
                         inviter_name = html.escape(db.compose_full_name(invited_by))
                         name += f" ({translate('from')} {inviter_name})"
@@ -162,15 +174,18 @@ def create_event_full_text(chat_id: int, translate) -> str:
 
                     if i == limit and limit > 0:
                         list_str += f"\n--- {translate('RESERVE')} ---\n"
-                    if uid >= 1010 or uid < 10:
-                        paid_mark = "✅"
-                    else:
+                    
+                    if 10 <= uid < 1010:
+                        leg_count += 1
+                        name = f"{translate('Legioner')} {leg_count}"
                         paid_mark = "➕"
+                    else:
+                        name = html.escape(db.compose_full_name(uid))
+                        paid_mark = "✅"
 
                     if db.get_payment_status(chat_id, uid):
                         paid_mark = "💰"
 
-                    name = html.escape(db.compose_full_name(uid))
                     if invited_by and 10 <= uid < 1010:
                         inviter_name = html.escape(db.compose_full_name(invited_by))
                         name += f" ({translate('from')} {inviter_name})"
