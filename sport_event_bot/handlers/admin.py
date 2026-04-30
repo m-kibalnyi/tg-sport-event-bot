@@ -17,80 +17,96 @@ async def _identify_user(update, context, translate, action_name):
     chat_id = update.message.chat_id
     user_id = None
     days = None
+    kb = None
 
-    # 1. Check if it's a reply to a message
-    if update.message.reply_to_message:
-        user_id = update.message.reply_to_message.from_user.id
-        if context.args:
-            try:
-                days = int(context.args[0])
-            except ValueError:
-                pass
-        return user_id, days, None
-
-    # 2. Check arguments
+    # 1. Check arguments first
     if context.args:
         arg = context.args[0]
+        # Try as numeric ID (large numbers)
         try:
-            # Try as numeric ID
-            user_id = int(arg)
+            val = int(arg)
+            if val > 1000000: # Heuristic for user ID
+                user_id = val
+                if len(context.args) > 1:
+                    try:
+                        days = int(context.args[1])
+                    except ValueError:
+                        pass
+        except ValueError:
+            pass
+
+        if not user_id:
+            # Try searching by username or name
+            potential_days = None
+            search_query = " ".join(context.args)
             if len(context.args) > 1:
                 try:
-                    days = int(context.args[1])
+                    potential_days = int(context.args[-1])
+                    search_query = " ".join(context.args[:-1])
                 except ValueError:
                     pass
-            return user_id, days, None
-        except ValueError:
-            # Not an ID, try searching by username or name
+            
             if arg.startswith("@"):
                 users = db.find_user_by_username(arg)
             else:
-                # Join all args except the last one if the last one is a number (days)
-                potential_days = None
-                name_query = " ".join(context.args)
-                if len(context.args) > 1:
-                    try:
-                        potential_days = int(context.args[-1])
-                        name_query = " ".join(context.args[:-1])
-                    except ValueError:
-                        pass
-
-                users = db.find_users_by_name(name_query)
-                if potential_days is not None:
-                    days = potential_days
+                users = db.find_users_by_name(search_query)
 
             if len(users) == 1:
                 user_id = users[0][0]
-                return user_id, days, None
+                if potential_days is not None:
+                    days = potential_days
             elif len(users) > 1:
                 players = []
                 for uid, fn, ln, un in users:
                     name = f"{fn} {ln}".strip() or un or str(uid)
                     players.append((uid, name))
-                
-                kb = build_penalty_selection_markup(players, translate, action_name, str(days) if days else "")
+                kb = build_penalty_selection_markup(players, translate, action_name, str(potential_days) if potential_days else "")
                 return None, None, kb
+
+    # 2. Check if it's a reply (only if no user found via arguments OR if arguments look like days)
+    if not user_id and not kb:
+        is_reply = bool(update.message.reply_to_message)
+        if is_reply:
+            # If arguments were provided, they must be numeric to be treated as days
+            can_use_reply = True
+            if context.args:
+                try:
+                    days = int(context.args[0])
+                except ValueError:
+                    # Arguments are NOT numeric, so they were meant as a name search which failed
+                    can_use_reply = False
+            
+            if can_use_reply:
+                user_id = update.message.reply_to_message.from_user.id
             else:
+                # Name search failed, don't fall back to reply
                 await update.message.reply_text(translate("User not found."))
                 return None, None, None
 
-    # 3. If no user identified, show interactive selection from current event
-    uids = db.get_event_users(chat_id)
-    if not uids:
-        return None, None, False # False indicates we should show usage
+    # 3. If still no user, and NO arguments were provided, show interactive selection from current event
+    if not user_id and not kb:
+        if context.args:
+            # Arguments were provided but search failed and it's not a valid reply flow
+            await update.message.reply_text(translate("User not found."))
+            return None, None, None
+            
+        uids = db.get_event_users(chat_id)
+        if not uids:
+            return None, None, False # False indicates we should show usage
 
-    players = []
-    for uid, _ in uids:
-        if uid < 1000:
-            continue  # Skip guest players
-        name = db.compose_full_name(uid)
-        players.append((uid, name))
+        players = []
+        for uid, _ in uids:
+            if uid < 1000:
+                continue  # Skip guest players
+            name = db.compose_full_name(uid)
+            players.append((uid, name))
 
-    if not players:
-        return None, None, True # True indicates no participants found
+        if not players:
+            return None, None, True # True indicates no participants found
 
-    kb = build_penalty_selection_markup(players, translate, action_name, str(days) if days else "")
-    return None, None, kb
+        kb = build_penalty_selection_markup(players, translate, action_name, str(days) if days else "")
+    
+    return user_id, days, kb
 
 
 @logger.catch
@@ -151,7 +167,10 @@ async def penalty_player(update, context):
             # Honor the days provided in command
             try:
                 db.penalty_for_user_in_chat(chat_id, user_id, update.effective_user.id, days)
-                await update.message.reply_text(translate("Penalty applied for %(days)d days.") % {"days": days})
+                name = db.compose_full_name(user_id)
+                await update.message.reply_text(
+                    translate("Penalty applied to %(name)s for %(days)d days.") % {"name": name, "days": days}
+                )
             except Exception as e:
                 logger.exception(e)
                 await update.message.reply_text(translate("Error applying penalty."))

@@ -48,7 +48,14 @@ def build_message_markup(
         rows.append([InlineKeyboardButton(translate_func("💰 Payment confirmed"), callback_data="PAY")])
 
     if is_admin:
-        # Row 5: Team count (Admin only)
+        # Row 5: Admin actions
+        rows.append(
+            [
+                InlineKeyboardButton("🟨 " + translate_func("Penalty"), callback_data="PENALTY_MENU"),
+            ]
+        )
+
+        # Row 6: Team count (Admin only)
         if extra1:
             rows.append(
                 [
@@ -128,4 +135,15 @@ def build_penalty_duration_markup(uid: int, translate_func: Callable[[str], str]
             row.append(InlineKeyboardButton(label, callback_data=f"PEN_DUR_{uid}_{days}"))
         rows.append(row)
     
+    return InlineKeyboardMarkup(rows)
+
+
+def build_penalty_main_menu_markup(translate_func: Callable[[str], str]):
+    rows = [
+        [
+            InlineKeyboardButton("➕ " + translate_func("Add penalty"), callback_data="PENALTY_ADD_FLOW"),
+            InlineKeyboardButton("➖ " + translate_func("Remove penalty"), callback_data="PENALTY_REMOVE_FLOW"),
+        ],
+        [InlineKeyboardButton("⬅️ " + translate_func("Back"), callback_data="SHOW_INFO")]
+    ]
     return InlineKeyboardMarkup(rows)

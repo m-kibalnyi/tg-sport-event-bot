@@ -144,12 +144,22 @@ def get_legioneer_user(event_id: int):
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT COUNT(user_id) FROM Participants WHERE event_id = %s AND user_id >= 10 AND user_id < 1010;",
-        (event_id,),
+        """
+        SELECT MAX(user_id) FROM (
+            SELECT user_id FROM Participants WHERE event_id = %s AND user_id >= 10 AND user_id < 1010
+            UNION ALL
+            SELECT user_id FROM Thinking WHERE event_id = %s AND user_id >= 10 AND user_id < 1010
+            UNION ALL
+            SELECT user_id FROM Revoked WHERE event_id = %s AND user_id >= 10 AND user_id < 1010
+        ) as all_legs;
+        """,
+        (event_id, event_id, event_id),
     )
-    count = cur.fetchone()
+    res = cur.fetchone()
     conn.close()
-    return int(count[0]) + 10 if count else 10
+    if res and res[0]:
+        return int(res[0]) + 1
+    return 10
 
 
 def apply_for_legioneer(chat_id, invited_by_user_id=None):
@@ -185,17 +195,7 @@ def revoke_for_legioneer(chat_id):
         return
     user_id = get_legioneer_user(event_id) - 1
     if user_id > 9:
-        dtm = datetime.datetime.now()
         _exec(conn, "DELETE FROM Participants WHERE event_id = %s AND user_id = %s;", (event_id, user_id))
-        _exec(
-            conn,
-            """
-            INSERT INTO Revoked (event_id, user_id, operation_datetime)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (event_id, user_id) DO UPDATE SET operation_datetime = EXCLUDED.operation_datetime;
-        """,
-            (event_id, user_id, dtm),
-        )
     conn.close()
 
 

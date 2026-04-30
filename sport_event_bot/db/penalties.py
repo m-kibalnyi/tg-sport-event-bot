@@ -22,6 +22,13 @@ def penalty_for_user_in_chat(chat_id: int, user_id: int, operator_id: int, days:
     )
     conn.close()
 
+    # Automatically move player to "I am not going" if they are in the event
+    try:
+        from sport_event_bot.db.participants import revoke_application_for_the_event
+        revoke_application_for_the_event(chat_id, user_id)
+    except ImportError:
+        pass
+
 
 def get_chat_user_rp(chat_id: int) -> List[Tuple[str, int]]:
     conn = reconnect()
@@ -114,3 +121,21 @@ def remove_user_penalties(chat_id: int, user_id: int):
         (chat_id, user_id, PLATFORM),
     )
     conn.close()
+
+def get_active_penalties_with_uids(chat_id: int) -> List[Tuple[int, str]]:
+    conn = reconnect()
+    now = datetime.datetime.now()
+    cur = _exec(
+        conn,
+        """
+        SELECT u.user_id, COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')
+        FROM Penalties p
+        JOIN Users u ON p.user_id = u.user_id AND p.platform = u.platform
+        WHERE p.chat_id = %s AND p.platform = %s AND (p.expires_at IS NULL OR p.expires_at > %s)
+        ORDER BY p.expires_at ASC;
+    """,
+        (chat_id, PLATFORM, now),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return [(int(r[0]), str(r[1]).strip() or str(r[0])) for r in rows]

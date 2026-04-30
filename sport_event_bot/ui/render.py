@@ -136,8 +136,7 @@ def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
                         invited_by = uid_data[1] if isinstance(uid_data, (list, tuple)) and len(uid_data) > 1 else None
 
                         if 10 <= uid < 1010:
-                            leg_count += 1
-                            name = f"{translate('Legioner')} {leg_count}"
+                            name = f"{translate('Legioner')} {uid - 9}"
                         else:
                             name = html.escape(db.compose_full_name(uid))
 
@@ -154,8 +153,7 @@ def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
                     invited_by = uid_data[1] if isinstance(uid_data, (list, tuple)) and len(uid_data) > 1 else None
 
                     if 10 <= uid < 1010:
-                        leg_count += 1
-                        name = f"{translate('Legioner')} {leg_count}"
+                        name = f"{translate('Legioner')} {uid - 9}"
                     else:
                         name = html.escape(db.compose_full_name(uid))
 
@@ -176,8 +174,7 @@ def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
                         list_str += f"\n--- {translate('RESERVE')} ---\n"
                     
                     if 10 <= uid < 1010:
-                        leg_count += 1
-                        name = f"{translate('Legioner')} {leg_count}"
+                        name = f"{translate('Legioner')} {uid - 9}"
                         paid_mark = "➕"
                     else:
                         name = html.escape(db.compose_full_name(uid))
@@ -196,14 +193,20 @@ def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
         if thinking:
             list_str += f"\n=====================\n\n{translate('Thinking')}:\n"
             for i, uid in enumerate(thinking):
-                name = html.escape(db.compose_full_name(uid))
+                if 10 <= uid < 1010:
+                    name = f"{translate('Legioner')} {uid - 9}"
+                else:
+                    name = html.escape(db.compose_full_name(uid))
                 list_str += f"{i + 1}. 🤔 {name}\n"
 
         revoked = db.get_event_revoked_users(chat_id)
         if revoked:
             list_str += f"\n=====================\n\n{translate('I am not going')}:\n"
             for i, uid in enumerate(revoked):
-                name = html.escape(db.compose_full_name(uid))
+                if 10 <= uid < 1010:
+                    name = f"{translate('Legioner')} {uid - 9}"
+                else:
+                    name = html.escape(db.compose_full_name(uid))
                 list_str += f"{i + 1}. ❌ {name}\n"
 
         penalties = db.get_active_penalties(chat_id)

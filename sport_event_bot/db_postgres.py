@@ -62,6 +62,7 @@ try:
     )
     from sport_event_bot.db.penalties import (  # noqa: F401
         get_active_penalties,
+        get_active_penalties_with_uids,
         get_chat_user_rp,
         get_user_cancellation_datetime,
         is_user_penalized,
@@ -74,6 +75,7 @@ try:
         find_user_by_username,
         find_users_by_name,
         get_all_userids,
+        get_recent_players,
         get_user_lang,
         set_user_lang,
     )

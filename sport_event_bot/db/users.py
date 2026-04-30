@@ -86,11 +86,34 @@ def find_users_by_name(query: str) -> List[tuple]:
         WHERE platform = %s AND (
             first_name ILIKE %s OR
             last_name ILIKE %s OR
+            username ILIKE %s OR
             COALESCE(first_name, '') || ' ' || COALESCE(last_name, '') ILIKE %s
         );
     """,
-        (PLATFORM, f"%{query}%", f"%{query}%", f"%{query}%"),
+        (PLATFORM, f"%{query}%", f"%{query}%", f"%{query}%", f"%{query}%"),
     )
     rows = cur.fetchall()
     conn.close()
     return rows
+
+
+def get_recent_players(chat_id: int, num_events: int = 2) -> List[tuple]:
+    conn = reconnect()
+    cur = _exec(
+        conn,
+        """
+        SELECT DISTINCT u.user_id, COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')
+        FROM Participants p
+        JOIN Events e ON p.event_id = e.event_id
+        JOIN Users u ON p.user_id = u.user_id AND e.platform = u.platform
+        WHERE e.chat_id = %s AND e.platform = %s
+          AND e.event_id IN (
+              SELECT event_id FROM Events WHERE chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT %s
+          )
+        ORDER BY 2;
+    """,
+        (chat_id, PLATFORM, chat_id, PLATFORM, num_events),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return [(int(r[0]), str(r[1]).strip() or str(r[0])) for r in rows]

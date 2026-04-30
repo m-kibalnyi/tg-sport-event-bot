@@ -35,7 +35,8 @@ async def button(update, context):
 
     # Admin-only actions
     if (data.startswith("SET_LIMIT_") or 
-        data in ["SHUFFLE", "RESHUFFLE", "INC_TEAMS", "DEC_TEAMS", "DELETE_EVENT", "CONFIRM_DELETE_EVENT", "CANCEL_DELETE_EVENT"] or 
+        data in ["SHUFFLE", "RESHUFFLE", "INC_TEAMS", "DEC_TEAMS", "DELETE_EVENT", "CONFIRM_DELETE_EVENT", "CANCEL_DELETE_EVENT", 
+                 "PENALTY_MENU", "PENALTY_ADD_FLOW", "PENALTY_REMOVE_FLOW"] or 
         data.startswith("PENALTY_") or 
         data.startswith("PEN_SEL_") or 
         data.startswith("PEN_DUR_")):
@@ -121,13 +122,38 @@ async def button(update, context):
         await query.answer(context.user_data["translate"]("Language updated"))
         await show_info(update, context)
         return
+    elif data == "PENALTY_MENU":
+        from sport_event_bot.ui.markups import build_penalty_main_menu_markup
+        await query.edit_message_text(
+            translate("Select action for penalties:"),
+            reply_markup=build_penalty_main_menu_markup(translate)
+        )
+        return
+    elif data == "PENALTY_ADD_FLOW":
+        players = db.get_recent_players(chat_id)
+        if not players:
+            await query.answer(translate("No players found in recent events."))
+            return
+        from sport_event_bot.ui.markups import build_penalty_selection_markup
+        kb = build_penalty_selection_markup(players, translate, "PEN_SEL")
+        await query.edit_message_text(translate("Select player to add penalty:"), reply_markup=kb)
+        return
+    elif data == "PENALTY_REMOVE_FLOW":
+        players = db.get_active_penalties_with_uids(chat_id)
+        if not players:
+            await query.answer(translate("No active penalties found."))
+            return
+        from sport_event_bot.ui.markups import build_penalty_selection_markup
+        kb = build_penalty_selection_markup(players, translate, "PENALTY_REMOVE")
+        await query.edit_message_text(translate("Select player to remove penalty:"), reply_markup=kb)
+        return
     elif data.startswith("PENALTY_REMOVE_"):
         uid = int(data.split("_")[-1])
         db.remove_user_penalties(chat_id, uid)
         name = db.compose_full_name(uid)
         msg = translate("Penalty removed for %(name)s.") % {"name": name}
         await query.answer(msg)
-        await query.edit_message_text(msg)
+        await show_info(update, context)
         return
     elif data.startswith("PEN_SEL_"):
         uid = int(data.split("_")[-1])
@@ -144,9 +170,9 @@ async def button(update, context):
         days = int(parts[3])
         db.penalty_for_user_in_chat(chat_id, uid, user_id, days)
         name = db.compose_full_name(uid)
-        msg = translate("Penalty applied for %(name)s for %(days)d days.") % {"name": name, "days": days}
+        msg = translate("Penalty applied to %(name)s for %(days)d days.") % {"name": name, "days": days}
         await query.answer(msg)
-        await query.edit_message_text(msg)
+        await show_info(update, context)
         return
     elif data == "DELETE_EVENT":
         # Show confirmation buttons
