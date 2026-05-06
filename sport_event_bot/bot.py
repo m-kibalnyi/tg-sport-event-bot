@@ -80,7 +80,7 @@ async def ping_php_server():
     async with httpx.AsyncClient() as client:
         while True:
             try:
-                await asyncio.sleep(60) # Ping every 60 seconds
+                await asyncio.sleep(900) # Ping every 900 seconds (15 minutes)
                 response = await client.get(pay_url, timeout=10.0)
                 logger.debug(f"Pinged PHP server: {response.status_code}")
             except asyncio.CancelledError:
