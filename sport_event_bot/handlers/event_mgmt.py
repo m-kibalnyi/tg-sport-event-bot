@@ -47,6 +47,11 @@ async def show_info(update, context):
 
 
 def parse_cmd_arg(update, context) -> str:
-    if context.args:
-        return " ".join(context.args)
+    if update and update.message and update.message.text:
+        parts = update.message.text.split(None, 1)
+        if len(parts) > 1:
+            return parts[1].strip()
+    if context and getattr(context, "args", None):
+        return " ".join(context.args).strip()
     return ""
+

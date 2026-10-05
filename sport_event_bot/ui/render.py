@@ -1,5 +1,6 @@
 import datetime
 import html
+from typing import Optional
 
 from loguru import logger
 
@@ -7,6 +8,21 @@ import sport_event_bot.db_postgres as db
 from sport_event_bot.utils.helpers import parse_datetime
 
 LOCATION_HIDE_MARKER = "null"
+
+
+def format_player_name(uid: int, translate) -> str:
+    if 10 <= uid < 1010:
+        return f"{translate('Legioner')} {uid - 9}"
+    full_name = html.escape(db.compose_full_name(uid))
+    return f'<a href="tg://user?id={uid}">{full_name}</a>'
+
+
+def format_player_entry(uid: int, invited_by: Optional[int], translate) -> str:
+    name = format_player_name(uid, translate)
+    if invited_by and 10 <= uid < 1010:
+        inviter_name = format_player_name(invited_by, translate)
+        name += f" ({translate('from')} {inviter_name})"
+    return name
 
 
 def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
@@ -59,8 +75,11 @@ def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
         header += f"📅 {translate('Event date and time')}: {dt_str}{time_left_str}\n"
 
         if location and location.lower() != LOCATION_HIDE_MARKER:
-            header += f"\n📍 <b>{html.escape(location)}</b>\n"
-            header += f"🔗 <a href='https://maps.google.com'>{translate('Location map')}</a>\n"
+            if location.startswith("http://") or location.startswith("https://"):
+                header += f"\n📍 <a href='{html.escape(location)}'><b>{translate('Location map')}</b></a>\n"
+            else:
+                header += f"\n📍 <b>{html.escape(location)}</b>\n"
+                header += f"🔗 <a href='https://maps.google.com'>{translate('Location map')}</a>\n"
 
         # Primary Payment/Info link
         main_link_added = False
@@ -135,14 +154,7 @@ def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
                         uid = uid_data[0] if isinstance(uid_data, (list, tuple)) else uid_data
                         invited_by = uid_data[1] if isinstance(uid_data, (list, tuple)) and len(uid_data) > 1 else None
 
-                        if 10 <= uid < 1010:
-                            name = f"{translate('Legioner')} {uid - 9}"
-                        else:
-                            name = html.escape(db.compose_full_name(uid))
-
-                        if invited_by and 10 <= uid < 1010:
-                            inviter_name = html.escape(db.compose_full_name(invited_by))
-                            name += f" ({translate('from')} {inviter_name})"
+                        name = format_player_entry(uid, invited_by, translate)
                         list_str += f"{j + 1}. {name}\n"
 
             reserve = teams_data.get("reserve", [])
@@ -152,14 +164,7 @@ def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
                     uid = uid_data[0] if isinstance(uid_data, (list, tuple)) else uid_data
                     invited_by = uid_data[1] if isinstance(uid_data, (list, tuple)) and len(uid_data) > 1 else None
 
-                    if 10 <= uid < 1010:
-                        name = f"{translate('Legioner')} {uid - 9}"
-                    else:
-                        name = html.escape(db.compose_full_name(uid))
-
-                    if invited_by and 10 <= uid < 1010:
-                        inviter_name = html.escape(db.compose_full_name(invited_by))
-                        name += f" ({translate('from')} {inviter_name})"
+                    name = format_player_entry(uid, invited_by, translate)
                     list_str += f"{j + 1}. {name}\n"
         else:
             players = db.get_event_users(chat_id)
@@ -173,40 +178,26 @@ def create_event_full_text(chat_id: int, translate, lang: str = "ru") -> str:
                     if i == limit and limit > 0:
                         list_str += f"\n--- {translate('RESERVE')} ---\n"
                     
-                    if 10 <= uid < 1010:
-                        name = f"{translate('Legioner')} {uid - 9}"
-                        paid_mark = "➕"
-                    else:
-                        name = html.escape(db.compose_full_name(uid))
-                        paid_mark = "✅"
-
+                    is_leg = (10 <= uid < 1010)
+                    paid_mark = "➕" if is_leg else "✅"
                     if db.get_payment_status(chat_id, uid):
                         paid_mark = "💰"
 
-                    if invited_by and 10 <= uid < 1010:
-                        inviter_name = html.escape(db.compose_full_name(invited_by))
-                        name += f" ({translate('from')} {inviter_name})"
-
+                    name = format_player_entry(uid, invited_by, translate)
                     list_str += f"{i + 1}. {paid_mark} {name}\n"
 
         thinking = db.get_thinking_users(chat_id)
         if thinking:
             list_str += f"\n=====================\n\n{translate('Thinking')}:\n"
             for i, uid in enumerate(thinking):
-                if 10 <= uid < 1010:
-                    name = f"{translate('Legioner')} {uid - 9}"
-                else:
-                    name = html.escape(db.compose_full_name(uid))
+                name = format_player_name(uid, translate)
                 list_str += f"{i + 1}. 🤔 {name}\n"
 
         revoked = db.get_event_revoked_users(chat_id)
         if revoked:
             list_str += f"\n=====================\n\n{translate('I am not going')}:\n"
             for i, uid in enumerate(revoked):
-                if 10 <= uid < 1010:
-                    name = f"{translate('Legioner')} {uid - 9}"
-                else:
-                    name = html.escape(db.compose_full_name(uid))
+                name = format_player_name(uid, translate)
                 list_str += f"{i + 1}. ❌ {name}\n"
 
         penalties = db.get_active_penalties(chat_id)

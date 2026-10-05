@@ -16,7 +16,7 @@ def set_payment_status(chat_id: int, user_id: int, paid: bool = True):
         """
         UPDATE Participants SET paid = %s, paid_at = %s
         WHERE user_id = %s AND event_id = (
-            SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1
+            SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1
         );
     """,
         (paid, paid_at, user_id, chat_id, PLATFORM),
@@ -31,7 +31,7 @@ def get_payment_status(chat_id: int, user_id: int) -> bool:
         """
         SELECT p.paid FROM Participants p
         WHERE p.user_id = %s AND p.event_id = (
-            SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1
+            SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1
         );
     """,
         (user_id, chat_id, PLATFORM),
@@ -57,7 +57,7 @@ def get_payment_log(chat_id: int) -> List[Tuple[str, datetime.datetime, bool]]:
         SELECT COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, ''), p.paid_at, (p.invited_by IS NOT NULL) as for_friend
         FROM Participants p
         LEFT JOIN Users u ON p.user_id = u.user_id AND u.platform = %s
-        WHERE p.event_id = (SELECT e.event_id FROM Events e WHERE e.status = 'Open' AND e.chat_id = %s AND e.platform = %s LIMIT 1)
+        WHERE p.event_id = (SELECT e.event_id FROM Events e WHERE e.status = 'Open' AND e.chat_id = %s AND e.platform = %s ORDER BY e.event_id DESC LIMIT 1)
         AND p.paid = TRUE
         ORDER BY p.paid_at ASC;
     """,

@@ -15,7 +15,7 @@ def get_event_users(chat_id: int) -> List[Tuple[int, int]]:
         """
         SELECT p.user_id, p.invited_by
         FROM Participants p
-        WHERE p.event_id = (SELECT e.event_id FROM Events e WHERE e.status = 'Open' AND e.chat_id = %s AND e.platform = %s LIMIT 1)
+        WHERE p.event_id = (SELECT e.event_id FROM Events e WHERE e.status = 'Open' AND e.chat_id = %s AND e.platform = %s ORDER BY e.event_id DESC LIMIT 1)
         ORDER BY p.operation_datetime;
     """,
         (chat_id, PLATFORM),
@@ -32,7 +32,7 @@ def get_event_revoked_users(chat_id: int) -> List[int]:
         """
         SELECT r.user_id
         FROM Revoked r
-        WHERE r.event_id = (SELECT e.event_id FROM Events e WHERE e.status = 'Open' AND e.chat_id = %s AND e.platform = %s LIMIT 1)
+        WHERE r.event_id = (SELECT e.event_id FROM Events e WHERE e.status = 'Open' AND e.chat_id = %s AND e.platform = %s ORDER BY e.event_id DESC LIMIT 1)
         ORDER BY r.operation_datetime;
     """,
         (chat_id, PLATFORM),
@@ -49,7 +49,7 @@ def get_thinking_users(chat_id: int) -> List[int]:
         """
         SELECT t.user_id
         FROM Thinking t
-        WHERE t.event_id = (SELECT e.event_id FROM Events e WHERE e.status = 'Open' AND e.chat_id = %s AND e.platform = %s LIMIT 1)
+        WHERE t.event_id = (SELECT e.event_id FROM Events e WHERE e.status = 'Open' AND e.chat_id = %s AND e.platform = %s ORDER BY e.event_id DESC LIMIT 1)
         ORDER BY t.operation_datetime;
     """,
         (chat_id, PLATFORM),
@@ -63,7 +63,7 @@ def apply_for_participation_in_the_event(chat_id: int, user_id: int):
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     event = cur.fetchone()
@@ -90,7 +90,7 @@ def revoke_application_for_the_event(chat_id: int, user_id: int):
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     event = cur.fetchone()
@@ -117,7 +117,7 @@ def apply_for_thinking(chat_id: int, user_id: int):
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     event = cur.fetchone()

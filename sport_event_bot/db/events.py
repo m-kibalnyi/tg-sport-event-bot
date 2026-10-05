@@ -40,7 +40,8 @@ def update_event_text(chat_id: int, text: str):
     conn = reconnect()
     _exec(
         conn,
-        "UPDATE Events SET description = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;",
+        """UPDATE Events SET description = %s 
+           WHERE event_id = (SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1);""",
         (text, chat_id, PLATFORM),
     )
     conn.close()
@@ -50,7 +51,7 @@ def get_event_text(chat_id: int) -> Optional[str]:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT description FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT description FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -62,7 +63,8 @@ def set_players_limit(chat_id: int, limit: int):
     conn = reconnect()
     _exec(
         conn,
-        "UPDATE Events SET players_limit = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;",
+        """UPDATE Events SET players_limit = %s 
+           WHERE event_id = (SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1);""",
         (limit, chat_id, PLATFORM),
     )
     conn.close()
@@ -72,7 +74,7 @@ def get_event_limit(chat_id: int) -> int:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT players_limit FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT players_limit FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -84,7 +86,8 @@ def set_event_datetime(chat_id: int, dt_str: str):
     conn = reconnect()
     _exec(
         conn,
-        "UPDATE Events SET datetime = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;",
+        """UPDATE Events SET datetime = %s 
+           WHERE event_id = (SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1);""",
         (dt_str, chat_id, PLATFORM),
     )
     conn.close()
@@ -94,7 +97,7 @@ def get_event_datetime(chat_id: int) -> str:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT datetime FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT datetime FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -106,7 +109,7 @@ def get_event_location(chat_id: int) -> Optional[str]:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT location FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT location FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -114,11 +117,22 @@ def get_event_location(chat_id: int) -> Optional[str]:
     return row[0] if row else None
 
 
+def set_event_location(chat_id: int, location: str) -> None:
+    conn = reconnect()
+    _exec(
+        conn,
+        """UPDATE Events SET location = %s 
+           WHERE event_id = (SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1);""",
+        (location, chat_id, PLATFORM),
+    )
+    conn.close()
+
+
 def get_event_payment_url(chat_id: int) -> Optional[str]:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT payment_url FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT payment_url FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -130,7 +144,8 @@ def set_event_payment_url(chat_id: int, url: str):
     conn = reconnect()
     _exec(
         conn,
-        "UPDATE Events SET payment_url = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;",
+        """UPDATE Events SET payment_url = %s 
+           WHERE event_id = (SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1);""",
         (url, chat_id, PLATFORM),
     )
     conn.close()
@@ -140,7 +155,7 @@ def get_event_extra1(chat_id: int) -> Optional[str]:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT extra1 FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT extra1 FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -152,7 +167,8 @@ def set_event_extra1(chat_id: int, val: str):
     conn = reconnect()
     _exec(
         conn,
-        "UPDATE Events SET extra1 = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;",
+        """UPDATE Events SET extra1 = %s 
+           WHERE event_id = (SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1);""",
         (val, chat_id, PLATFORM),
     )
     conn.close()
@@ -162,7 +178,7 @@ def get_event_telegraph_url(chat_id: int) -> Optional[str]:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT telegraph_url FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT telegraph_url FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -174,7 +190,8 @@ def set_event_telegraph_url(chat_id, url):
     conn = reconnect()
     _exec(
         conn,
-        "UPDATE Events SET telegraph_url = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;",
+        """UPDATE Events SET telegraph_url = %s 
+           WHERE event_id = (SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1);""",
         (url, chat_id, PLATFORM),
     )
     conn.close()
@@ -184,7 +201,7 @@ def get_event_id_by_chat_id(chat_id: int) -> Optional[int]:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -196,7 +213,7 @@ def get_event_creator(chat_id: int) -> Optional[int]:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT creator_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT creator_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -228,7 +245,7 @@ def get_event_blik_phone(chat_id: int) -> Optional[str]:
     conn = reconnect()
     cur = _exec(
         conn,
-        "SELECT blik_phone FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s LIMIT 1;",
+        "SELECT blik_phone FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1;",
         (chat_id, PLATFORM),
     )
     row = cur.fetchone()
@@ -240,7 +257,9 @@ def set_event_blik_phone(chat_id: int, phone: str):
     conn = reconnect()
     _exec(
         conn,
-        "UPDATE Events SET blik_phone = %s WHERE status = 'Open' AND chat_id = %s AND platform = %s;",
+        """UPDATE Events SET blik_phone = %s 
+           WHERE event_id = (SELECT event_id FROM Events WHERE status = 'Open' AND chat_id = %s AND platform = %s ORDER BY event_id DESC LIMIT 1);""",
         (phone, chat_id, PLATFORM),
     )
     conn.close()
+

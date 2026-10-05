@@ -11,6 +11,15 @@ def test_parse_loose_json():
     assert result["limit"] == 16
     assert result["public"] is True
 
+    # Standard JSON with double-quoted keys
+    json_text = '{"name": "Football Match", "limit": 14, "dt": "2026-10-07 20:15", "location": "https://maps.google.com/?q=50.0,19.9"}'
+    res_json = parse_loose_json(json_text)
+    assert res_json["name"] == "Football Match"
+    assert res_json["limit"] == 14
+    assert res_json["dt"] == "2026-10-07 20:15"
+    assert res_json["datetime"] == "2026-10-07 20:15"
+    assert res_json["location"] == "https://maps.google.com/?q=50.0,19.9"
+
     # Single quotes and mixed types
     text = "location: 'Warsaw City', price: 25.5, active: false"
     result = parse_loose_json(text)
@@ -54,7 +63,7 @@ def test_get_default_datetime():
     # but we can check if it returns a valid datetime.
     dt = get_default_datetime()
     assert isinstance(dt, datetime.datetime)
-    assert dt.minute in [30, 0]  # Based on the code's 20:30 or 11:30
+    assert dt.minute in [15, 30, 0]  # Based on the code's 20:15 or 11:30
 
 
 def test_parse_datetime():

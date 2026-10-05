@@ -138,5 +138,5 @@ def test_create_event_full_text_legioneer_attribution(mock_db, mocker):
     result = create_event_full_text(chat_id, translate)
 
     # Check for attribution string
-    assert "Legioner 1 (from John Wick)" in result
+    assert 'Legioner 1 (from <a href="tg://user?id=1010">John Wick</a>)' in result
     assert "John Wick" in result

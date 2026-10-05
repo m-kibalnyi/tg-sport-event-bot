@@ -34,6 +34,7 @@ try:
         set_event_blik_phone,
         set_event_datetime,
         set_event_extra1,
+        set_event_location,
         set_event_payment_url,
         set_event_telegraph_url,
         set_players_limit,

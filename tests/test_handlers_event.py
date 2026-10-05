@@ -28,29 +28,85 @@ async def test_create_new_event_start(mock_parse_arg, mock_admin, mock_db, mock_
     # Execute
     result = await create_new_event(mock_update, mock_context)
 
-    # Verify
+    # Verify: suggests default event name with confirm/change
     assert result == EVENT_SET_NAME
+    assert mock_context.user_data["new_event_data"]["name"] == "Среда, Величка, сбор 20:00, начало 20:15"
     mock_update.message.reply_text.assert_called_once()
-    assert "What is the name of the event?" in mock_update.message.reply_text.call_args[0][0]
+    assert "Среда, Величка, сбор 20:00, начало 20:15" in mock_update.message.reply_text.call_args[0][0]
 
 
 @pytest.mark.asyncio
 @patch("sport_event_bot.handlers.event_conv.db")
 @patch("sport_event_bot.handlers.event_conv.is_user_admin")
-async def test_create_new_event_already_exists(mock_admin, mock_db, mock_update, mock_context, translate):
-    # Setup
+@patch("sport_event_bot.handlers.event_conv.parse_cmd_arg")
+async def test_create_new_event_allows_when_previous_exists(
+    mock_parse_arg, mock_admin, mock_db, mock_update, mock_context, translate
+):
+    # Setup - an active event already exists, but we allow creating new event
     mock_admin.return_value = True
     mock_context.user_data["translate"] = translate
-    mock_db.get_event_text.return_value = "Existing Event"
+    mock_db.get_event_text.return_value = "Old Active Event"
+    mock_parse_arg.return_value = "New Wednesday Match"
 
     mock_update.message.reply_text = AsyncMock()
 
     # Execute
     result = await create_new_event(mock_update, mock_context)
 
-    # Verify
+    # Verify: does not error, proceeds to next step
+    assert result == EVENT_SET_LIMIT
+    assert mock_context.user_data["new_event_data"]["name"] == "New Wednesday Match"
+
+
+@pytest.mark.asyncio
+@patch("sport_event_bot.handlers.event_conv.db")
+@patch("sport_event_bot.handlers.event_conv.is_user_admin")
+@patch("sport_event_bot.handlers.event_conv.parse_cmd_arg")
+@patch("sport_event_bot.handlers.event_conv.finalize_event_creation", new_callable=AsyncMock)
+async def test_create_new_event_json_one_shot(
+    mock_finalize, mock_parse_arg, mock_admin, mock_db, mock_update, mock_context, translate
+):
+    mock_admin.return_value = True
+    mock_context.user_data["translate"] = translate
+    mock_parse_arg.return_value = (
+        '{"name": "Inline Football", "limit": 14, "dt": "2026-10-07 20:15", "location": "https://maps.google.com/test"}'
+    )
+    mock_finalize.return_value = ConversationHandler.END
+
+    result = await create_new_event(mock_update, mock_context)
+
     assert result == ConversationHandler.END
-    mock_update.message.reply_text.assert_called_once_with("Error: An active event already exists.")
+    mock_finalize.assert_called_once()
+    assert mock_context.user_data["new_event_data"]["name"] == "Inline Football"
+    assert mock_context.user_data["new_event_data"]["limit"] == 14
+    assert mock_context.user_data["new_event_data"]["location"] == "https://maps.google.com/test"
+
+
+@pytest.mark.asyncio
+@patch("sport_event_bot.handlers.event_conv.db")
+@patch("sport_event_bot.handlers.event_conv.is_user_admin")
+@patch("sport_event_bot.handlers.event_conv.parse_cmd_arg")
+@patch("sport_event_bot.handlers.event_conv.finalize_event_creation", new_callable=AsyncMock)
+async def test_create_new_event_user_exact_command(
+    mock_finalize, mock_parse_arg, mock_admin, mock_db, mock_update, mock_context, translate
+):
+    mock_admin.return_value = True
+    mock_context.user_data["translate"] = translate
+    user_cmd = '{"name":"🎉 Среда 07.10 Orlik Wieliczka Начало 20:15 (сбор 20:00)🎉","limit":21,"datetime":"2026-10-07 20:15","location":"https://maps.app.goo.gl/ZWY7bQzLruA3qnMM7?g_st=ic","free":false,"blik":"791162031"}'
+    mock_parse_arg.return_value = user_cmd
+    mock_finalize.return_value = ConversationHandler.END
+
+    result = await create_new_event(mock_update, mock_context)
+
+    assert result == ConversationHandler.END
+    mock_finalize.assert_called_once()
+    data = mock_context.user_data["new_event_data"]
+    assert data["name"] == "🎉 Среда 07.10 Orlik Wieliczka Начало 20:15 (сбор 20:00)🎉"
+    assert data["limit"] == 21
+    assert data["datetime"] == "2026-10-07 20:15"
+    assert data["location"] == "https://maps.app.goo.gl/ZWY7bQzLruA3qnMM7?g_st=ic"
+    assert data["free"] is False
+    assert data["blik"] == "791162031"
 
 
 @pytest.mark.asyncio

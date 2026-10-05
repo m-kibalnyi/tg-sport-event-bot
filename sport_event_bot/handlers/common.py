@@ -47,6 +47,7 @@ Available BOT commands:
 /fix - Refresh event view
 /penalty USER - Give yellow card
 /penalty_remove USER - Remove yellow card
+/set_location URL - Set event location
 /stat - Group statistics
 /set_lists_topic - Set this thread for event lists
 /set_logs_topic - Set this thread for logs

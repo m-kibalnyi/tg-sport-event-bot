@@ -142,6 +142,7 @@ async def main():
     application.add_handler(CommandHandler("fix", admin.fix_ui))
     application.add_handler(CommandHandler("set_lists_topic", admin.set_lists_topic))
     application.add_handler(CommandHandler("set_logs_topic", admin.set_logs_topic))
+    application.add_handler(CommandHandler("set_location", admin.set_location))
 
     application.add_handler(CommandHandler("event_remove", event.remove_all_chat_events))
     application.add_handler(CommandHandler("event_update", event.update_event))

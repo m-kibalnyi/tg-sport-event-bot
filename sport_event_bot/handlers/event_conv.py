@@ -16,6 +16,9 @@ from sport_event_bot.utils.logging_service import log_event
 EVENT_SET_NAME, EVENT_SET_LIMIT, EVENT_SET_DATETIME, EVENT_SET_PAYMENT, EVENT_SET_BLIK = range(5)
 
 
+DEFAULT_EVENT_NAME = "Среда, Величка, сбор 20:00, начало 20:15"
+
+
 @logger.catch
 @make_translatable_user_id_context
 async def create_new_event(update, context):
@@ -26,29 +29,33 @@ async def create_new_event(update, context):
     if not await is_user_admin(update, context):
         await update.message.reply_text(translate("Access denied: only admins can use this command."))
         return ConversationHandler.END
-    if db.get_event_text(chat_id):
 
-        await update.message.reply_text(translate("Error: An active event already exists."))
-        return ConversationHandler.END
     arg = parse_cmd_arg(update, context)
     context.user_data["new_event_data"] = {}
     if arg.strip().startswith("{"):
         try:
-            context.user_data["new_event_data"] = parse_loose_json(arg)
-            # If JSON contains at least name, we can try one-shot
-            if "name" in context.user_data["new_event_data"]:
-                return await finalize_event_creation(update, context)
-            return await event_ask_step(update, context, EVENT_SET_NAME)
+            parsed = parse_loose_json(arg)
+            if not parsed:
+                raise ValueError("Could not parse JSON parameters")
+            context.user_data["new_event_data"] = parsed
+            if "name" not in context.user_data["new_event_data"]:
+                context.user_data["new_event_data"]["name"] = DEFAULT_EVENT_NAME
+            return await finalize_event_creation(update, context)
         except Exception as e:
             logger.warning(f"Failed one-shot creation: {e}")
-            pass
+            await update.message.reply_text(
+                f"{translate('Failed to create event from JSON')}: {e}\n\n"
+                f"{translate('Example')}:\n"
+                f'<code>/event {{"name": "{DEFAULT_EVENT_NAME}", "limit": 14, "dt": "2026-10-07 20:15", "location": "https://maps.google.com/..."}}</code>',
+                parse_mode=ParseMode.HTML,
+            )
+            return ConversationHandler.END
     if arg:
         context.user_data["new_event_data"]["name"] = arg
         return await event_ask_step(update, context, EVENT_SET_LIMIT)
-    await update.message.reply_text(
-        translate("What is the name of the event?"), reply_markup=ForceReply(selective=True)
-    )
-    return EVENT_SET_NAME
+
+    context.user_data["new_event_data"]["name"] = DEFAULT_EVENT_NAME
+    return await event_ask_step(update, context, EVENT_SET_NAME)
 
 
 async def event_ask_step(update, context, step):
@@ -144,7 +151,7 @@ async def event_ask_step(update, context, step):
             await context.bot.send_message(
                 update.effective_chat.id,
                 f"{translate('Suggesting default time')}: <b>{default_str}</b>.\n"
-                f"{translate('Or enter custom time (e.g. tomorrow 20:30):')}",
+                f"{translate('Or enter custom time (e.g. tomorrow 20:15):')}",
                 reply_markup=ForceReply(selective=True),
                 parse_mode=ParseMode.HTML,
                 message_thread_id=thread_id,
@@ -316,8 +323,11 @@ async def finalize_event_creation(update, context):
     data = context.user_data["new_event_data"]
     translate = context.user_data["translate"]
     chat_id = update.effective_chat.id
-    name = data.get("name", "Sport Event")
-    limit = data.get("limit", 14)
+    name = data.get("name") or DEFAULT_EVENT_NAME
+    try:
+        limit = int(data.get("limit", 14))
+    except (ValueError, TypeError):
+        limit = 14
     lang = context.user_data.get("lang", "ru")
     dt = parse_datetime(data.get("datetime"), lang) if data.get("datetime") else get_default_datetime()
 
@@ -332,11 +342,17 @@ async def finalize_event_creation(update, context):
     # Ensure chat is registered (FK constraint)
     db.register_new_chat_id(chat_id, "ru")
 
+    # Close previous open events so they remain in history without blocking new events
+    db.close_all_open_events_for_chat(chat_id)
+
     logger.info(f"Finalizing event creation for chat {chat_id} in thread {lists_thread_id}")
     placeholder = await context.bot.send_message(
         chat_id, f"🎉 <b>{name}</b>...", parse_mode=ParseMode.HTML, message_thread_id=lists_thread_id
     )
     logger.info(f"Placeholder created with message_id {placeholder.message_id}")
+
+    is_free = bool(data.get("free"))
+    blik_phone = None if is_free else (str(data.get("blik")) if data.get("blik") else None)
 
     try:
         db.event(
@@ -349,8 +365,8 @@ async def finalize_event_creation(update, context):
             update.effective_user.id,
             location=data.get("location"),
         )
-        if data.get("blik"):
-            db.set_event_blik_phone(chat_id, str(data.get("blik")))
+        if blik_phone:
+            db.set_event_blik_phone(chat_id, blik_phone)
     except Exception as e:
         logger.error(f"Failed to save event to DB: {e}")
         await context.bot.send_message(chat_id, f"❌ Error saving event: {e}", message_thread_id=lists_thread_id)
@@ -361,7 +377,7 @@ async def finalize_event_creation(update, context):
         chat_id=chat_id,
         message_id=placeholder.message_id,
         text=full_text,
-        reply_markup=build_message_markup(translate, None, blik_phone=data.get("blik")),
+        reply_markup=build_message_markup(translate, None, blik_phone=blik_phone),
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )

@@ -82,7 +82,7 @@ def get_default_datetime():
         if days_ahead < 0:
             days_ahead += 7
         target = now + datetime.timedelta(days=days_ahead)
-        return target.replace(hour=20, minute=30, second=0, microsecond=0)
+        return target.replace(hour=20, minute=15, second=0, microsecond=0)
     else:
         days_ahead = 6 - now.weekday()
         if days_ahead <= 0:
@@ -95,25 +95,47 @@ def get_default_datetime():
 
 
 def parse_loose_json(text):
-    pattern = r'(\w+)\s*:\s*("[^"]*"|\'[^\']*\'|[\w.:/\\\-]+)'
+    if not text:
+        return {}
+    text = text.strip()
+    import json
+
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            if "dt" in data and "datetime" not in data:
+                data["datetime"] = data["dt"]
+            return data
+    except Exception:
+        pass
+
+    pattern = r'(?:["\']?(\w+)["\']?)\s*:\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\'|([^,}\n\r]+))'
     matches = re.findall(pattern, text)
     result = {}
-    for key, val in matches:
-        if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
-            val = val[1:-1]
-        elif val.lower() == "true":
-            val = True
-        elif val.lower() == "false":
-            val = False
+    for key, val_dq, val_sq, val_raw in matches:
+        if val_dq:
+            val = val_dq
+        elif val_sq:
+            val = val_sq
         else:
-            try:
-                val = int(val)
-            except ValueError:
+            val = val_raw.strip()
+            if val.lower() == "true":
+                val = True
+            elif val.lower() == "false":
+                val = False
+            else:
                 try:
-                    val = float(val)
+                    val = int(val)
                 except ValueError:
-                    pass
+                    try:
+                        val = float(val)
+                    except ValueError:
+                        pass
         result[key] = val
+
+    if "dt" in result and "datetime" not in result:
+        result["datetime"] = result["dt"]
+
     return result
 
 

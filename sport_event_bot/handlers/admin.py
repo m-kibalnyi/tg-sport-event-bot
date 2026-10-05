@@ -286,3 +286,60 @@ async def set_logs_topic(update, context):
     thread_id = update.message.message_thread_id
     db.set_log_thread_id(chat_id, thread_id)
     await update.message.reply_text(translate("Logs topic configured for this thread."))
+
+
+@logger.catch
+@make_translatable_user_id_context
+async def set_location(update, context):
+    """Set a Google Maps URL (or plain text) as the location for the current open event.
+
+    Usage: /set_location https://maps.app.goo.gl/...
+    """
+    if not update.message:
+        return
+    chat_id = update.message.chat_id
+    translate = context.user_data["translate"]
+
+    if not await is_user_admin(update, context):
+        await update.message.reply_text(translate("Access denied: only admins can use this command."))
+        return
+
+    if not context.args:
+        await update.message.reply_text(
+            translate("Usage: /set_location <google maps URL or place name>")
+        )
+        return
+
+    location = " ".join(context.args).strip()
+
+    if not db.get_event_text(chat_id):
+        await update.message.reply_text(translate("No active event found."))
+        return
+
+    db.set_event_location(chat_id, location)
+
+    # Refresh the pinned event message so the location appears immediately
+    from sport_event_bot.ui.render import create_event_full_text
+    from sport_event_bot.ui.markups import build_message_markup
+    from telegram.constants import ParseMode
+
+    full_text = create_event_full_text(chat_id, translate)
+    bot_msg_id = db.get_latest_bot_message_id(chat_id)
+    blik_phone = db.get_event_blik_phone(chat_id)
+
+    if bot_msg_id:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=int(bot_msg_id),
+                text=full_text,
+                reply_markup=build_message_markup(translate, None, blik_phone=blik_phone),
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+            )
+            db.save_latest_bot_message(chat_id, bot_msg_id, full_text)
+        except Exception as e:
+            logger.warning(f"Could not refresh event message: {e}")
+
+    await update.message.reply_text(translate("📍 Location updated for the current event."))
+
