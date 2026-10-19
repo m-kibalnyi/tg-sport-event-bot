@@ -12,8 +12,5 @@ COPY web/ /var/www/html/
 # Ensure Apache (www-data) owns the files to avoid 403 Forbidden errors
 RUN chown -R www-data:www-data /var/www/html
 
-# Ensure Apache can listen on the port Render provides
-RUN sed -i 's/80/${PORT}/g' /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf
-
 # Start Apache
 CMD ["apache2-foreground"]
