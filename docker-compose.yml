@@ -1,0 +1,20 @@
+services:
+  tg-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: tg-bot
+    restart: always
+    env_file: .env
+    volumes:
+      - ./sport_event_bot/logs:/app/sport_event_bot/logs
+
+  tg-web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: tg-web
+    restart: always
+    ports:
+      - "8080:80"
+    env_file: .env
